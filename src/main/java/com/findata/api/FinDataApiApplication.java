@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class FindataApiApplication {
+public class FinDataApiApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(FindataApiApplication.class, args);
+		SpringApplication.run(FinDataApiApplication.class, args);
 	}
 
 }
