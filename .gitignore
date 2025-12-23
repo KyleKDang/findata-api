@@ -1,0 +1,29 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Application
+*.log
+application-local.yml
+application-secrets.yml
+
+# Environment variables
+.env
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.swp
+*.swo
+*~
