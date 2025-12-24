@@ -1,4 +1,8 @@
 spring:
+  devtools:
+    restart:
+      enabled: false
+
   application:
     name: findata-api
 
