@@ -1,6 +1,9 @@
 package com.findata.api.model.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,15 +26,21 @@ import java.time.LocalDateTime;
 public class Stock {
 
     @Id
+    @NotBlank(message = "Ticker cannot be blank")
+    @Size(min = 1, max = 10, message = "Ticker must be between 1 and 10 characters")
     @Column(length = 10, nullable = false)
     private String ticker;
 
+    @NotBlank(message = "Company name cannot be blank")
+    @Size(max = 255, message = "Company name must not exceed 255 characters")
     @Column(name = "company_name", length = 255, nullable = false)
     private String companyName;
 
+    @Size(max = 100, message = "Sector must not exceed 100 characters")
     @Column(length = 100)
     private String sector;
 
+    @Positive(message = "Market cap must be positive")
     @Column(name = "market_cap")
     private Long marketCap;
 

@@ -2,11 +2,10 @@ package com.findata.api.controller;
 
 import com.findata.api.model.entity.Stock;
 import com.findata.api.service.StockService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
@@ -19,7 +18,7 @@ public class StockController {
     private final StockService stockService;
 
     @PostMapping
-    public ResponseEntity<Stock> createStock(@RequestBody Stock stock) {
+    public ResponseEntity<Stock> createStock(@Valid @RequestBody Stock stock) {
         Stock savedStock = stockService.saveStock(stock);
         URI location = URI.create("/api/stocks/" + savedStock.getTicker());
         return ResponseEntity.created(location).body(savedStock);
