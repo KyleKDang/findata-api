@@ -2,6 +2,7 @@ package com.findata.api.controller;
 
 import com.findata.api.model.entity.PriceHistory;
 import com.findata.api.service.PriceHistoryService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -20,14 +21,14 @@ public class PriceHistoryController {
     private final PriceHistoryService priceHistoryService;
 
     @PostMapping
-    public ResponseEntity<PriceHistory> createPrice(@RequestBody PriceHistory priceHistory) {
+    public ResponseEntity<PriceHistory> createPrice(@Valid @RequestBody PriceHistory priceHistory) {
         PriceHistory savedPrice = priceHistoryService.savePrice(priceHistory);
         URI location = URI.create("/api/prices/" + savedPrice.getId());
         return ResponseEntity.created(location).body(savedPrice);
     }
 
     @PostMapping("/bulk")
-    public ResponseEntity<List<PriceHistory>> createPrices(@RequestBody List<PriceHistory> prices) {
+    public ResponseEntity<List<PriceHistory>> createPrices(@Valid @RequestBody List<PriceHistory> prices) {
         List<PriceHistory> savedPrices = priceHistoryService.savePrices(prices);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedPrices);
     }
