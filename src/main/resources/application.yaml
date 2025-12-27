@@ -1,4 +1,7 @@
 spring:
+  config:
+    import: optional:file:./src/main/resources/application-secrets.yaml
+
   devtools:
     restart:
       enabled: false
@@ -9,7 +12,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/financial_data
     username: postgres
-    password: REDACTED
+    password: ${POSTGRES_PASSWORD:dev_password}
     driver-class-name: org.postgresql.Driver
 
     hikari:
@@ -54,3 +57,7 @@ logging:
   level:
     com.findata.api: DEBUG
     org.hibernate.SQL: DEBUG
+
+alphavantage:
+  api-key: ${ALPHAVANTAGE_API_KEY:demo}
+  base-url: https://www.alphavantage.co/query

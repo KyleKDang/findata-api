@@ -12,8 +12,8 @@ pom.xml.versionsBackup
 
 # Application
 *.log
-application-local.yml
-application-secrets.yml
+application-local.yaml
+application-secrets.yaml
 
 # Environment variables
 .env
