@@ -15,6 +15,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,15 +40,30 @@ public class AlphaVantageService {
 
             List<PriceHistory> prices = convertToPriceHistory(ticker, response);
 
-            List<PriceHistory> savedPrices = priceHistoryService.savePrices(prices);
+            List<PriceHistory> newPrices = filterExistingPrices(ticker, prices);
 
-            log.info("Successfully saved {} price records for {}", savedPrices.size(), ticker);
+            if (newPrices.isEmpty()) {
+                log.info("No new prices to save for {}", ticker);
+                return List.of();
+            }
+
+            List<PriceHistory> savedPrices = priceHistoryService.savePrices(newPrices);
+
+            log.info("Successfully saved {} new price records for {}", savedPrices.size(), ticker);
             return savedPrices;
 
         } catch (Exception e) {
             log.error("Error fetching data for {}: {}", ticker, e.getMessage());
             throw new RuntimeException("Failed to fetch data from Alpha Vantage", e);
         }
+    }
+
+    private String buildURL(String ticker) {
+        return UriComponentsBuilder.fromUriString(properties.getBaseUrl())
+                .queryParam("function", "TIME_SERIES_DAILY")
+                .queryParam("symbol", ticker)
+                .queryParam("apikey", properties.getApiKey())
+                .toUriString();
     }
 
     private List<PriceHistory> convertToPriceHistory(String ticker, AlphaVantageResponse response) {
@@ -74,11 +91,14 @@ public class AlphaVantageService {
         return priceHistories;
     }
 
-    private String buildURL(String ticker) {
-        return UriComponentsBuilder.fromUriString(properties.getBaseUrl())
-                .queryParam("function", "TIME_SERIES_DAILY")
-                .queryParam("symbol", ticker)
-                .queryParam("apikey", properties.getApiKey())
-                .toUriString();
+    private List<PriceHistory> filterExistingPrices(String ticker, List<PriceHistory> prices) {
+        Set<LocalDate> existingDates = priceHistoryService.getPriceHistory(ticker)
+                .stream()
+                .map(PriceHistory::getDate)
+                .collect(Collectors.toSet());
+
+        return prices.stream()
+                .filter(price -> !existingDates.contains(price.getDate()))
+                .toList();
     }
 }
