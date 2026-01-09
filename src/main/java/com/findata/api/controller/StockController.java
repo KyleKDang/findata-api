@@ -1,6 +1,8 @@
 package com.findata.api.controller;
 
+import com.findata.api.model.dto.StockAnalytics;
 import com.findata.api.model.entity.Stock;
+import com.findata.api.service.AnalyticsService;
 import com.findata.api.service.StockService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import java.util.List;
 public class StockController {
 
     private final StockService stockService;
+    private final AnalyticsService analyticsService;
 
     @PostMapping
     public ResponseEntity<Stock> createStock(@Valid @RequestBody Stock stock) {
@@ -41,5 +44,16 @@ public class StockController {
     public ResponseEntity<Void> deleteStock(@PathVariable String ticker) {
         stockService.deleteStock(ticker);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{ticker}/analytics")
+    public ResponseEntity<StockAnalytics> getStockAnalytics(@PathVariable String ticker) {
+        StockAnalytics analytics = analyticsService.calculateAnalytics(ticker);
+
+        if (analytics == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(analytics);
     }
 }
