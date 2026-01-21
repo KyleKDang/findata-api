@@ -33,6 +33,7 @@ public class StockAnalytics {
     private BigDecimal movingAverage200Day;
 
     private BigDecimal volatility30Day;
+    private BigDecimal sharpeRatio;
 
     private BigDecimal week52High;
     private BigDecimal week52Low;

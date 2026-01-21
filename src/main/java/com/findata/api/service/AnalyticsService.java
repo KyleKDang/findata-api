@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -16,6 +17,9 @@ import java.util.List;
 public class AnalyticsService {
 
     private final PriceHistoryService priceHistoryService;
+
+    private static final BigDecimal ANNUAL_RISK_FREE_RATE = new BigDecimal("0.025");
+    private static final int TRADING_DAYS_PER_YEAR = 252;
 
     public StockAnalytics calculateAnalytics(String ticker) {
         List<PriceHistory> prices = priceHistoryService.getPriceHistory(ticker);
@@ -41,6 +45,7 @@ public class AnalyticsService {
                 .movingAverage50Day(calculateMovingAverage(prices, 50))
                 .movingAverage200Day(calculateMovingAverage(prices, 200))
                 .volatility30Day(calculateVolatility(prices, 30))
+                .sharpeRatio(calculateSharpeRatio(prices, 252))
                 .week52High(calculate52WeekHigh(prices))
                 .week52Low(calculate52WeekLow(prices))
                 .averageVolume30Day(calculateAverageVolume(prices, 30))
@@ -109,6 +114,78 @@ public class AnalyticsService {
 
         return BigDecimal.valueOf(Math.sqrt(variance.doubleValue()))
                 .setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateSharpeRatio(List<PriceHistory> prices, int days) {
+        if (prices.size() < days + 1) {
+            log.debug("Not enough data to calculate Sharpe ratio for {} days", days);
+            return BigDecimal.ZERO;
+        }
+
+        List<BigDecimal> dailyReturns = calculateDailyReturns(prices, days);
+
+        if (dailyReturns.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal averageDailyReturn = dailyReturns.stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(dailyReturns.size()), 6, RoundingMode.HALF_UP);
+
+        BigDecimal annualizedReturn = averageDailyReturn
+                .multiply(BigDecimal.valueOf(TRADING_DAYS_PER_YEAR));
+
+        BigDecimal dailyVolatility = calculateDailyVolatility(dailyReturns, averageDailyReturn);
+
+        BigDecimal annualizedVolatility = dailyVolatility
+                .multiply(BigDecimal.valueOf(Math.sqrt(TRADING_DAYS_PER_YEAR)))
+                .setScale(6, RoundingMode.HALF_UP);
+
+        BigDecimal excessReturn = annualizedReturn.subtract(ANNUAL_RISK_FREE_RATE);
+
+        if (annualizedVolatility.compareTo(BigDecimal.ZERO) == 0) {
+            log.warn("Volatility is zero, cannot calculate Sharpe ratio");
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal sharpeRatio = excessReturn
+                .divide(annualizedVolatility, 4, RoundingMode.HALF_UP);
+
+        log.debug("Sharpe Ratio calculation - Annualized Return: {}, Volatility: {}, Sharpe: {}",
+                annualizedReturn, annualizedVolatility, sharpeRatio);
+
+        return sharpeRatio;
+    }
+
+    private List<BigDecimal> calculateDailyReturns(List<PriceHistory> prices, int days) {
+        List<BigDecimal> dailyReturns = new ArrayList<>();
+
+        for (int i = 0; i < days && i < prices.size() - 1; i++) {
+            BigDecimal todayPrice = prices.get(i).getClose();
+            BigDecimal yesterdayPrice = prices.get(i + 1).getClose();
+
+            if (yesterdayPrice.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal dailyReturn = todayPrice.subtract(yesterdayPrice)
+                        .divide(yesterdayPrice, 6, RoundingMode.HALF_UP);
+                dailyReturns.add(dailyReturn);
+            }
+        }
+
+        return dailyReturns;
+    }
+
+    private BigDecimal calculateDailyVolatility(List<BigDecimal> dailyReturns, BigDecimal mean) {
+        if (dailyReturns.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal variance = dailyReturns.stream()
+                .map(ret -> ret.subtract(mean).pow(2))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(dailyReturns.size()), 6, RoundingMode.HALF_UP);
+
+        return BigDecimal.valueOf(Math.sqrt(variance.doubleValue()))
+                .setScale(6, RoundingMode.HALF_UP);
     }
 
     private BigDecimal calculate52WeekHigh(List<PriceHistory> prices) {
