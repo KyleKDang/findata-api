@@ -24,6 +24,7 @@ public class PredictionService {
     private static final int LAG_DAYS = 5;
     private static final int PREDICTION_HORIZON = 5;
     private static final double TRAIN_TEST_SPLIT = 0.8;
+    private static final int FEATURE_WINDOW = 20;
 
     public StockPrediction predictPrices(String ticker) {
         log.info("Generating price predictions for ticker: {}", ticker);
@@ -63,13 +64,18 @@ public class PredictionService {
         List<double[]> features = new ArrayList<>();
         List<Double> targets = new ArrayList<>();
 
-        for (int i = 20; i < prices.size() - 1; i++) {
+        int maxIndex = prices.size() - FEATURE_WINDOW;
+
+        for (int i = 1; i < maxIndex; i++) {
             double[] featureVector = createFeatureVector(prices, i);
             double target = prices.get(i - 1).getClose().doubleValue();
 
             features.add(featureVector);
             targets.add(target);
         }
+
+        log.debug("Prepared {} training examples from {} days of price data",
+                features.size(), prices.size());
 
         return new TrainingData(features, targets);
     }
