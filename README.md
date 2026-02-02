@@ -1,6 +1,6 @@
 # FinData API
 
-A financial data aggregation API built with Spring Boot and PostgreSQL. Provides REST endpoints for stock data management, historical price tracking, and real-time analytics.
+A financial data aggregation API built with Spring Boot and PostgreSQL. Provides REST endpoints for stock data management, historical price tracking, real-time analytics, and ML-powered price predictions.
 
 ## Tech Stack
 
@@ -10,6 +10,7 @@ A financial data aggregation API built with Spring Boot and PostgreSQL. Provides
 - Maven
 - Docker
 - Alpha Vantage API
+- Apache Commons Math 3.6.1
 
 ## API Endpoints
 
@@ -30,6 +31,7 @@ A financial data aggregation API built with Spring Boot and PostgreSQL. Provides
 ### Analytics
 
 - `GET /api/stocks/{ticker}/analytics` - Get financial analytics
+- `GET /api/stocks/{ticker}/predict` - Get ML price predictions (requires 60+ days of data)
 
 ## Example Usage
 
@@ -56,7 +58,7 @@ curl http://localhost:8080/api/stocks/AAPL/analytics
 ```json
 {
   "ticker": "AAPL",
-  "asOfDate": "2025-12-26",
+  "asOfDate": "2025-01-22",
   "currentPrice": 184.30,
   "previousClose": 182.50,
   "dailyChange": 1.80,
@@ -68,9 +70,46 @@ curl http://localhost:8080/api/stocks/AAPL/analytics
   "movingAverage50Day": 178.45,
   "movingAverage200Day": 165.32,
   "volatility30Day": 18.52,
+  "sharpeRatio": 0.85,
   "week52High": 195.50,
   "week52Low": 142.30,
   "averageVolume30Day": 55000000
+}
+```
+
+### Get Price Predictions
+
+```bash
+curl http://localhost:8080/api/stocks/AAPL/predict
+```
+
+**Response:**
+```json
+{
+  "ticker": "AAPL",
+  "modelType": "ridge_regression",
+  "predictionDate": "2025-01-22",
+  "predictions": [
+    {
+      "date": "2025-01-23",
+      "predictedPrice": 185.50,
+      "confidenceLower": 181.30,
+      "confidenceUpper": 189.70
+    },
+    {
+      "date": "2025-01-24",
+      "predictedPrice": 186.20,
+      "confidenceLower": 182.00,
+      "confidenceUpper": 190.40
+    }
+  ],
+  "metrics": {
+    "rmse": 2.10,
+    "mae": 1.65,
+    "rSquared": 0.78,
+    "trainSize": 48,
+    "testSize": 12
+  }
 }
 ```
 
@@ -136,8 +175,16 @@ src/main/java/com/findata/api/
 - **Price Changes**: Daily, weekly, and monthly returns (absolute and percentage)
 - **Moving Averages**: 50-day and 200-day trend indicators
 - **Volatility**: 30-day standard deviation of returns
+- **Sharpe Ratio**: Risk-adjusted return metric
 - **Range Metrics**: 52-week high/low prices
 - **Volume Analysis**: 30-day average trading volume
+
+### Machine Learning Price Prediction
+- **Algorithm**: Linear regression with regularization (OLS)
+- **Features**: 8 engineered features (lag prices, moving averages, volatility)
+- **Validation**: 80/20 train/test split with RMSE, MAE, R² metrics
+- **Output**: 5-day price forecasts with confidence intervals
+- **Requirements**: Minimum 60 days of historical data
 
 ### Data Integrity
 - Input validation with custom error messages
