@@ -1,6 +1,8 @@
-# FinData API
+# FinData Analytics API
 
-A financial data aggregation API built with Spring Boot and PostgreSQL. Provides REST endpoints for stock data management, historical price tracking, real-time analytics, and ML-powered price predictions.
+A backend system for market data aggregation, storage, and analysis. Provides REST endpoints for querying historical prices, calculating financial metrics, and performing portfolio-level analytics.
+
+**Purpose:** This is a decision support tool that enables data-driven analysis, not a recommendation system or trading bot.
 
 ## Tech Stack
 
@@ -30,8 +32,9 @@ A financial data aggregation API built with Spring Boot and PostgreSQL. Provides
 
 ### Analytics
 
-- `GET /api/stocks/{ticker}/analytics` - Get financial analytics
-- `GET /api/stocks/{ticker}/predict` - Get ML price predictions (requires 60+ days of data)
+- `GET /api/stocks/{ticker}/analytics` - Calculate real-time analytics
+- `GET /api/stocks/{ticker}/analytics/cached` - Retrieve pre-computed analytics (faster)
+- `GET /api/stocks/{ticker}/predict` - Get trend estimation via linear regression (requires 60+ days of data)
 
 ## Example Usage
 
@@ -48,7 +51,7 @@ curl -X POST http://localhost:8080/api/stocks \
   }'
 ```
 
-### Get Stock Analytics
+### Get Stock Analytics (Real-time)
 
 ```bash
 curl http://localhost:8080/api/stocks/AAPL/analytics
@@ -76,6 +79,14 @@ curl http://localhost:8080/api/stocks/AAPL/analytics
   "averageVolume30Day": 55000000
 }
 ```
+
+### Get Cached Analytics (Faster)
+
+```bash
+curl http://localhost:8080/api/stocks/AAPL/analytics/cached
+```
+
+Returns pre-computed analytics from daily job. Much faster than real-time calculation, but may be up to 24 hours old.
 
 ### Get Price Predictions
 
@@ -113,6 +124,8 @@ curl http://localhost:8080/api/stocks/AAPL/predict
 }
 ```
 
+**Note:** Predictions are simple linear regression baselines for exploratory analysis, not production-grade forecasts.
+
 ## Database Schema
 
 ### Stocks Table
@@ -143,6 +156,19 @@ PARTITION BY RANGE (date)
 
 **Partitions:** 12 monthly partitions for 2025 (Jan-Dec) plus default partition
 
+### Derived Analytics Table
+```sql
+id BIGSERIAL PRIMARY KEY
+ticker VARCHAR(10) FOREIGN KEY REFERENCES stocks(ticker)
+as_of_date DATE NOT NULL
+current_price NUMERIC(12,4) NOT NULL
+-- ... all analytics metrics ...
+calculated_at TIMESTAMP NOT NULL
+UNIQUE (ticker, as_of_date)
+```
+
+**Purpose:** Stores pre-computed analytics to improve query performance. Separates raw price data from derived metrics.
+
 ## Project Structure
 
 ```
@@ -162,11 +188,13 @@ src/main/java/com/findata/api/
 ### Automated Data Pipeline
 - Scheduled cron job runs daily at 6 PM EST
 - Fetches latest stock prices from Alpha Vantage API
+- Computes and caches analytics metrics
 - Rate-limited to 5 calls per minute (13-second delays)
 - Idempotent upsert logic prevents duplicate entries
 
 ### Performance Optimizations
 - **Table Partitioning**: RANGE partitioning by date delivers 10-50x faster queries
+- **Derived Analytics Caching**: Pre-computed metrics eliminate expensive real-time calculations
 - **HashSet Filtering**: O(1) duplicate detection vs O(n) with List
 - **Bulk Operations**: Batch inserts for 100+ records at once
 - **Connection Pooling**: HikariCP with optimized pool settings
@@ -183,8 +211,9 @@ src/main/java/com/findata/api/
 - **Algorithm**: Linear regression with regularization (OLS)
 - **Features**: 8 engineered features (lag prices, moving averages, volatility)
 - **Validation**: 80/20 train/test split with RMSE, MAE, R² metrics
-- **Output**: 5-day price forecasts with confidence intervals
+- **Output**: 5-day trend estimates with confidence intervals
 - **Requirements**: Minimum 60 days of historical data
+- **Note**: Simple baseline for exploratory analysis, not production forecasts
 
 ### Data Integrity
 - Input validation with custom error messages
