@@ -16,9 +16,13 @@ import java.util.List;
 public class StockPrediction {
 
     private String ticker;
+
     private String modelType;
+
     private LocalDate predictionDate;
+
     private List<DailyPrediction> predictions;
+
     private ModelMetrics metrics;
 
     @Data
@@ -26,8 +30,10 @@ public class StockPrediction {
     @AllArgsConstructor
     @Builder
     public static class DailyPrediction {
+
         private LocalDate date;
         private BigDecimal predictedPrice;
+
         private BigDecimal confidenceLower;
         private BigDecimal confidenceUpper;
     }
@@ -37,9 +43,11 @@ public class StockPrediction {
     @AllArgsConstructor
     @Builder
     public static class ModelMetrics {
+
         private BigDecimal rmse;
         private BigDecimal mae;
         private BigDecimal rSquared;
+
         private int trainSize;
         private int testSize;
     }
