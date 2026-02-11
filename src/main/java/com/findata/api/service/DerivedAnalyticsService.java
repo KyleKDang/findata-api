@@ -54,4 +54,10 @@ public class DerivedAnalyticsService {
     public Optional<DerivedAnalytics> getAnalyticsForDate(String ticker, LocalDate date) {
         return derivedAnalyticsRepository.findByTickerAndAsOfDate(ticker, date);
     }
+
+    @Transactional
+    public void deleteAnalytics(String ticker, LocalDate date) {
+        derivedAnalyticsRepository.deleteByTickerAndAsOfDate(ticker, date);
+        log.debug("Deleted derived analytics for ticker: {} as of {}", ticker, date);
+    }
 }
