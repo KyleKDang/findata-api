@@ -1,8 +1,10 @@
 package com.findata.api.controller;
 
 import com.findata.api.model.dto.StockAnalytics;
+import com.findata.api.model.entity.DerivedAnalytics;
 import com.findata.api.model.entity.Stock;
 import com.findata.api.service.AnalyticsService;
+import com.findata.api.service.DerivedAnalyticsService;
 import com.findata.api.service.StockService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ public class StockController {
 
     private final StockService stockService;
     private final AnalyticsService analyticsService;
+    private final DerivedAnalyticsService derivedAnalyticsService;
 
     @PostMapping
     public ResponseEntity<Stock> createStock(@Valid @RequestBody Stock stock) {
@@ -55,5 +58,12 @@ public class StockController {
         }
 
         return ResponseEntity.ok(analytics);
+    }
+
+    @GetMapping("/{ticker}/analytics/cached")
+    public ResponseEntity<DerivedAnalytics> getCachedAnalytics(@PathVariable String ticker) {
+        return derivedAnalyticsService.getLatestAnalytics(ticker)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 }
