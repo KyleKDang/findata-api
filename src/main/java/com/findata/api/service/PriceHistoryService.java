@@ -2,6 +2,7 @@ package com.findata.api.service;
 
 import com.findata.api.model.entity.PriceHistory;
 import com.findata.api.repository.PriceHistoryRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,10 +16,12 @@ public class PriceHistoryService {
 
     private final PriceHistoryRepository priceHistoryRepository;
 
+    @Transactional
     public PriceHistory savePrice(PriceHistory priceHistory) {
         return priceHistoryRepository.save(priceHistory);
     }
 
+    @Transactional
     public List<PriceHistory> savePrices(List<PriceHistory> prices) {
         return priceHistoryRepository.saveAll(prices);
     }
