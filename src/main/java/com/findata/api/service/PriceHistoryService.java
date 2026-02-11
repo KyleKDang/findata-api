@@ -2,9 +2,9 @@ package com.findata.api.service;
 
 import com.findata.api.model.entity.PriceHistory;
 import com.findata.api.repository.PriceHistoryRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;

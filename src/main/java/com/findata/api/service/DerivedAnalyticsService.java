@@ -3,10 +3,10 @@ package com.findata.api.service;
 import com.findata.api.model.dto.StockAnalytics;
 import com.findata.api.model.entity.DerivedAnalytics;
 import com.findata.api.repository.DerivedAnalyticsRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.Optional;
