@@ -4,6 +4,7 @@ import com.findata.api.model.entity.Stock;
 import com.findata.api.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,7 @@ public class StockService {
 
     private final StockRepository stockRepository;
 
+    @Transactional
     public Stock saveStock(Stock stock) {
         return stockRepository.save(stock);
     }
@@ -26,6 +28,7 @@ public class StockService {
         return stockRepository.findAll();
     }
 
+    @Transactional
     public void deleteStock(String ticker) {
         stockRepository.deleteById(ticker);
     }
