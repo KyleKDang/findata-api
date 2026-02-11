@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 @Service
@@ -48,5 +49,9 @@ public class DerivedAnalyticsService {
 
     public Optional<DerivedAnalytics> getLatestAnalytics(String ticker) {
         return derivedAnalyticsRepository.findFirstByTickerOrderByAsOfDateDesc(ticker);
+    }
+
+    public Optional<DerivedAnalytics> getAnalyticsForDate(String ticker, LocalDate date) {
+        return derivedAnalyticsRepository.findByTickerAndAsOfDate(ticker, date);
     }
 }
