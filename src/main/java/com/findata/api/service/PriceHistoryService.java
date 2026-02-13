@@ -3,6 +3,10 @@ package com.findata.api.service;
 import com.findata.api.model.entity.PriceHistory;
 import com.findata.api.repository.PriceHistoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +32,11 @@ public class PriceHistoryService {
 
     public List<PriceHistory> getPriceHistory(String ticker) {
         return priceHistoryRepository.findByTickerOrderByDateDesc(ticker);
+    }
+
+    public Page<PriceHistory> getPriceHistory(String ticker, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "date"));
+        return priceHistoryRepository.findByTicker(ticker, pageable);
     }
 
     public List<PriceHistory> getPriceHistoryInRange(String ticker, LocalDate startDate, LocalDate endDate) {
