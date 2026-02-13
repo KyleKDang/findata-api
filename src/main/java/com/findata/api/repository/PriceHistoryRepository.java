@@ -1,6 +1,8 @@
 package com.findata.api.repository;
 
 import com.findata.api.model.entity.PriceHistory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -10,6 +12,8 @@ import java.util.Optional;
 public interface PriceHistoryRepository extends JpaRepository<PriceHistory, Long> {
 
     List<PriceHistory> findByTickerOrderByDateDesc(String ticker);
+
+    Page<PriceHistory> findByTicker(String ticker, Pageable pageable);
 
     List<PriceHistory> findByTickerAndDateBetween(String ticker, LocalDate startDate, LocalDate endDate);
 
