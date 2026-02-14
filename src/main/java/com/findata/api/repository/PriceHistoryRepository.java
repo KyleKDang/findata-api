@@ -17,6 +17,9 @@ public interface PriceHistoryRepository extends JpaRepository<PriceHistory, Long
 
     List<PriceHistory> findByTickerAndDateBetween(String ticker, LocalDate startDate, LocalDate endDate);
 
+    Page<PriceHistory> findByTickerAndDateBetween(
+            String ticker, LocalDate startDate, LocalDate endDate, Pageable pageable);
+
     Optional<PriceHistory> findByTickerAndDate(String ticker, LocalDate date);
 
     Optional<PriceHistory> findFirstByTickerOrderByDateDesc(String ticker);
