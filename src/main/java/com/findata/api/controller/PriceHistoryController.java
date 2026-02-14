@@ -4,6 +4,7 @@ import com.findata.api.model.entity.PriceHistory;
 import com.findata.api.service.PriceHistoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,8 +35,11 @@ public class PriceHistoryController {
     }
 
     @GetMapping("/{ticker}")
-    public ResponseEntity<List<PriceHistory>> getPriceHistory(@PathVariable String ticker) {
-        List<PriceHistory> prices = priceHistoryService.getPriceHistory(ticker);
+    public ResponseEntity<Page<PriceHistory>> getPriceHistory(
+            @PathVariable String ticker,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        Page<PriceHistory> prices = priceHistoryService.getPriceHistory(ticker, page, size);
         return ResponseEntity.ok(prices);
     }
 
