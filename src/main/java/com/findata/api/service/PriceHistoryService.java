@@ -43,6 +43,23 @@ public class PriceHistoryService {
         return priceHistoryRepository.findByTickerAndDateBetween(ticker, startDate, endDate);
     }
 
+    public Page<PriceHistory> getPriceHistoryInRange(
+            String ticker,
+            LocalDate startDate,
+            LocalDate endDate,
+            int page,
+            int size,
+            String sortBy,
+            String sortDirection) {
+
+        Sort.Direction direction = sortDirection.equalsIgnoreCase("asc")
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+        return priceHistoryRepository.findByTickerAndDateBetween(ticker, startDate, endDate, pageable);
+    }
+
     public Optional<PriceHistory> getPriceByDate(String ticker, LocalDate date) {
         return priceHistoryRepository.findByTickerAndDate(ticker, date);
     }
