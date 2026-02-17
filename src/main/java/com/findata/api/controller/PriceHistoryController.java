@@ -51,11 +51,16 @@ public class PriceHistoryController {
     }
 
     @GetMapping("/{ticker}/range")
-    public ResponseEntity<List<PriceHistory>> getPriceRange(
+    public ResponseEntity<Page<PriceHistory>> getPriceRange(
             @PathVariable String ticker,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<PriceHistory> prices = priceHistoryService.getPriceHistoryInRange(ticker, startDate, endDate);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "date") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDirection) {
+        Page<PriceHistory> prices = priceHistoryService.getPriceHistoryInRange(
+                ticker, startDate, endDate, page, size, sortBy, sortDirection);
         return ResponseEntity.ok(prices);
     }
 }
