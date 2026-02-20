@@ -21,7 +21,7 @@ public class ApiError {
 
     @Data
     @Builder
-    private static class FieldError {
+    public static class FieldError {
         private String field;
         private Object rejectedValue;
         private String message;
