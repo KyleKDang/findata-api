@@ -26,9 +26,9 @@ A backend system for market data aggregation, storage, and analysis. Provides RE
 ### Price History
 
 - `POST /api/prices` - Add price entry
-- `GET /api/prices/{ticker}` - Get all prices for stock
+- `GET /api/prices/{ticker}?page=0&size=50` - Get prices with pagination
 - `GET /api/prices/{ticker}/latest` - Get latest price
-- `GET /api/prices/{ticker}/range?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` - Get price range
+- `GET /api/prices/{ticker}/range?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&page=0&size=50&sortBy=date&sortDirection=desc` - Get price range with pagination and sorting
 
 ### Analytics
 
@@ -50,6 +50,54 @@ curl -X POST http://localhost:8080/api/stocks \
     "marketCap": 3000000000000
   }'
 ```
+
+### Get Paginated Price History
+
+```bash
+# First page (50 results)
+curl "http://localhost:8080/api/prices/AAPL?page=0&size=50"
+
+# Second page
+curl "http://localhost:8080/api/prices/AAPL?page=1&size=50"
+```
+
+**Response:**
+```json
+{
+  "content": [
+    {
+      "id": 1,
+      "ticker": "AAPL",
+      "date": "2025-01-22",
+      "open": 183.50,
+      "high": 186.00,
+      "low": 182.80,
+      "close": 185.50,
+      "volume": 52000000
+    }
+  ],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 50
+  },
+  "totalPages": 5,
+  "totalElements": 250,
+  "last": false,
+  "first": true
+}
+```
+
+### Get Price Range with Sorting
+
+```bash
+# Sort by closing price, ascending
+curl "http://localhost:8080/api/prices/AAPL/range?startDate=2024-01-01&endDate=2024-12-31&sortBy=close&sortDirection=asc&page=0&size=100"
+
+# Sort by date, descending (default)
+curl "http://localhost:8080/api/prices/AAPL/range?startDate=2024-01-01&endDate=2024-12-31"
+```
+
+**Sortable fields:** date, open, high, low, close, volume
 
 ### Get Stock Analytics (Real-time)
 
@@ -126,6 +174,76 @@ curl http://localhost:8080/api/stocks/AAPL/predict
 
 **Note:** Predictions are simple linear regression baselines for exploratory analysis, not production-grade forecasts.
 
+## Error Handling
+
+All errors follow a consistent JSON structure:
+
+### Validation Error (400)
+
+**Request:**
+```bash
+curl -X POST http://localhost:8080/api/stocks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ticker": "",
+    "companyName": "Apple Inc."
+  }'
+```
+
+**Response:**
+```json
+{
+  "timestamp": "2025-01-22T10:30:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed for one or more fields",
+  "path": "/api/stocks",
+  "fieldErrors": [
+    {
+      "field": "ticker",
+      "rejectedValue": "",
+      "message": "Ticker must not be blank"
+    }
+  ]
+}
+```
+
+### Business Logic Error (400)
+
+**Request:**
+```bash
+curl http://localhost:8080/api/stocks/AAPL/predict
+```
+
+**Response (if insufficient data):**
+```json
+{
+  "timestamp": "2025-01-22T10:30:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Need at least 60 days of data for prediction",
+  "path": "/api/stocks/AAPL/predict"
+}
+```
+
+### Not Found (404)
+
+**Request:**
+```bash
+curl http://localhost:8080/api/stocks/INVALID
+```
+
+**Response:**
+```json
+{
+  "timestamp": "2025-01-22T10:30:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Stock not found",
+  "path": "/api/stocks/INVALID"
+}
+```
+
 ## Database Schema
 
 ### Stocks Table
@@ -195,6 +313,7 @@ src/main/java/com/findata/api/
 ### Performance Optimizations
 - **Table Partitioning**: RANGE partitioning by date delivers 10-50x faster queries
 - **Derived Analytics Caching**: Pre-computed metrics eliminate expensive real-time calculations
+- **Pagination**: Prevents memory issues when querying large datasets
 - **HashSet Filtering**: O(1) duplicate detection vs O(n) with List
 - **Bulk Operations**: Batch inserts for 100+ records at once
 - **Connection Pooling**: HikariCP with optimized pool settings
@@ -214,6 +333,12 @@ src/main/java/com/findata/api/
 - **Output**: 5-day trend estimates with confidence intervals
 - **Requirements**: Minimum 60 days of historical data
 - **Note**: Simple baseline for exploratory analysis, not production forecasts
+
+### API Design
+- **Pagination**: All list endpoints support page and size parameters
+- **Filtering & Sorting**: Flexible query parameters for data exploration
+- **Consistent Error Format**: Standardized JSON error responses with field-level details
+- **Input Validation**: Request validation with detailed error messages
 
 ### Data Integrity
 - Input validation with custom error messages
