@@ -1,5 +1,6 @@
 package com.findata.api.controller;
 
+import com.findata.api.exception.ResourceNotFoundException;
 import com.findata.api.model.dto.StockAnalytics;
 import com.findata.api.model.entity.DerivedAnalytics;
 import com.findata.api.model.entity.Stock;
@@ -64,6 +65,7 @@ public class StockController {
     public ResponseEntity<DerivedAnalytics> getCachedAnalytics(@PathVariable String ticker) {
         return derivedAnalyticsService.getLatestAnalytics(ticker)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No cached analytics found for ticker: " + ticker));
     }
 }
