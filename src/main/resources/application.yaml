@@ -10,8 +10,6 @@ spring:
     name: findata-api
 
   datasource:
-    url: jdbc:postgresql://findata-db.cgfmemcceauu.us-east-1.rds.amazonaws.com:5432/financial_data
-    username: postgres
     driver-class-name: org.postgresql.Driver
 
     hikari:
