@@ -4,9 +4,7 @@ import com.findata.api.model.entity.IngestionStatus;
 import com.findata.api.repository.IngestionStatusRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -28,5 +26,11 @@ public class IngestionStatusController {
     public ResponseEntity<List<IngestionStatus>> getJobHistory() {
         List<IngestionStatus> history = ingestionStatusRepository.findTop10ByOrderByJobStartedAtDesc();
         return ResponseEntity.ok(history);
+    }
+
+    @GetMapping("/status/failed")
+    public ResponseEntity<List<IngestionStatus>> getFailedJobs() {
+        List<IngestionStatus> failed = ingestionStatusRepository.findByStatus(IngestionStatus.JobStatus.FAILED);
+        return ResponseEntity.ok(failed);
     }
 }
