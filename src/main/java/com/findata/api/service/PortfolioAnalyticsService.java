@@ -8,8 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import javax.sound.sampled.Port;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,5 +45,18 @@ public class PortfolioAnalyticsService {
         }
 
         return priceData;
+    }
+
+    private BigDecimal calculateReturn(List<PriceHistory> prices) {
+        if (prices.size() < 2) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal startPrice = prices.get(prices.size() - 1).getClose();
+        BigDecimal endPrice = prices.get(0).getClose();
+
+        return endPrice.subtract(startPrice)
+                .divide(startPrice, 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
     }
 }
