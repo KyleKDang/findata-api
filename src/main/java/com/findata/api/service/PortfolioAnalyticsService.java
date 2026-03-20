@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,5 +59,34 @@ public class PortfolioAnalyticsService {
         return endPrice.subtract(startPrice)
                 .divide(startPrice, 4, RoundingMode.HALF_UP)
                 .multiply(new BigDecimal("100"));
+    }
+
+    private BigDecimal calculateVolatility(List<PriceHistory> prices) {
+        if (prices.size() < 2) {
+            return BigDecimal.ZERO;
+        }
+
+        List<BigDecimal> dailyReturns = new ArrayList<>();
+        for (int i = 0; i < prices.size() - 1; i++) {
+            BigDecimal currentPrice = prices.get(i).getClose();
+            BigDecimal previousPrice = prices.get(i + 1).getClose();
+
+            BigDecimal dailyReturn = currentPrice.subtract(previousPrice)
+                    .divide(previousPrice, 4, RoundingMode.HALF_UP);
+            dailyReturns.add(dailyReturn);
+        }
+
+        BigDecimal mean = dailyReturns.stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(new BigDecimal(dailyReturns.size()), 6, RoundingMode.HALF_UP);
+
+        BigDecimal variance = dailyReturns.stream()
+                .map(ret -> ret.subtract(mean).pow(2))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(new BigDecimal(dailyReturns.size()), 6, RoundingMode.HALF_UP);
+
+        double volatility = Math.sqrt(variance.doubleValue()) * Math.sqrt(252) * 100;
+
+        return BigDecimal.valueOf(volatility).setScale(2, RoundingMode.HALF_UP);
     }
 }
