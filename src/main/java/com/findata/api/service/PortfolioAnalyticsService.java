@@ -1,6 +1,8 @@
 package com.findata.api.service;
 
+import com.findata.api.model.dto.PortfolioMetricsRequest;
 import com.findata.api.model.dto.PortfolioPosition;
+import com.findata.api.model.entity.PriceHistory;
 import com.findata.api.repository.PriceHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,7 +10,9 @@ import org.springframework.stereotype.Service;
 
 import javax.sound.sampled.Port;
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -27,5 +31,19 @@ public class PortfolioAnalyticsService {
             throw new IllegalArgumentException(
                     String.format("Portfolio weights must sum to 1.0 (got %.2f)", totalWeight));
         }
+    }
+
+    private Map<String, List<PriceHistory>> fetchPriceData(PortfolioMetricsRequest request) {
+        Map<String, List<PriceHistory>> priceData = new HashMap<>();
+
+        for (PortfolioPosition position : request.getPositions()) {
+            List<PriceHistory> prices = priceHistoryRepository.findByTickerAndDateBetween(
+                    position.getTicker(),
+                    request.getStartDate(),
+                    request.getEndDate());
+            priceData.put(position.getTicker(), prices);
+        }
+
+        return priceData;
     }
 }
