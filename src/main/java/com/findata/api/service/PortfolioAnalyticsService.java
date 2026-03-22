@@ -89,4 +89,19 @@ public class PortfolioAnalyticsService {
 
         return BigDecimal.valueOf(volatility).setScale(2, RoundingMode.HALF_UP);
     }
+
+    private BigDecimal calculatePortfolioVolatility(
+            List<PortfolioPosition> positions,
+            Map<String, List<PriceHistory>> priceData) {
+        BigDecimal weightedVolatility = BigDecimal.ZERO;
+
+        for (PortfolioPosition position : positions) {
+            List<PriceHistory> prices = priceData.get(position.getTicker());
+            BigDecimal stockVolatility = calculateVolatility(prices);
+            BigDecimal weightedContribution = stockVolatility.multiply(position.getWeight());
+            weightedVolatility = weightedVolatility.add(weightedContribution);
+        }
+
+        return weightedVolatility;
+    }
 }
