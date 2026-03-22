@@ -104,4 +104,12 @@ public class PortfolioAnalyticsService {
 
         return weightedVolatility;
     }
+
+    private BigDecimal calculateSharpeRatio(BigDecimal portfolioReturn, BigDecimal portfolioVolatility) {
+        if (portfolioReturn.compareTo(portfolioVolatility) == 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return portfolioReturn.divide(portfolioVolatility, 4, RoundingMode.HALF_UP);
+    }
 }
