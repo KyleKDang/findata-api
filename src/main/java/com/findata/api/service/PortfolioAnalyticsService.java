@@ -1,5 +1,6 @@
 package com.findata.api.service;
 
+import com.findata.api.model.dto.PortfolioMetrics;
 import com.findata.api.model.dto.PortfolioMetricsRequest;
 import com.findata.api.model.dto.PortfolioPosition;
 import com.findata.api.model.entity.PriceHistory;
@@ -21,6 +22,57 @@ import java.util.Map;
 public class PortfolioAnalyticsService {
 
     private final PriceHistoryRepository priceHistoryRepository;
+
+    public PortfolioMetrics calculatePortfolioMetrics(PortfolioMetricsRequest request) {
+        log.info("Calculating portfolio metrics for {} positions from {} to {}",
+                request.getPositions().size(), request.getStartDate(), request.getEndDate());
+
+        // Validate weights sum to 1.0
+        validateWeights(request.getPositions());
+
+        // Get price data for all positions
+        Map<String, List<PriceHistory>> priceData = fetchPriceData(request);
+
+        // Calculate per-position metrics
+        List<PortfolioMetrics.PositionMetrics> positionMetrics = new ArrayList<>();
+        BigDecimal portfolioReturn = BigDecimal.ZERO;
+
+        for (PortfolioPosition position : request.getPositions()) {
+            List<PriceHistory> prices = priceData.get(position.getTicker());
+
+            if (prices == null || prices.isEmpty()) {
+                throw new IllegalArgumentException("No price data found for ticker: " + position.getTicker());
+            }
+
+            BigDecimal stockReturn = calculateReturn(prices);
+            BigDecimal stockVolatility = calculateVolatility(prices);
+            BigDecimal contribution = stockReturn.multiply(position.getWeight());
+
+            positionMetrics.add(PortfolioMetrics.PositionMetrics.builder()
+                    .ticker(position.getTicker())
+                    .weight(position.getWeight())
+                    .returnPercent(stockReturn)
+                    .volatility(stockVolatility)
+                    .contribution(contribution)
+                    .build());
+
+            portfolioReturn = portfolioReturn.add(contribution);
+        }
+
+        BigDecimal portfolioVolatility = calculatePortfolioVolatility(request.getPositions(), priceData);
+        BigDecimal sharpeRatio = calculateSharpeRatio(portfolioReturn, portfolioVolatility);
+
+        return PortfolioMetrics.builder()
+                .positions(request.getPositions())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
+                .portfolioReturn(portfolioReturn)
+                .portfolioReturnPercent(portfolioReturn)
+                .portfolioVolatility(portfolioVolatility)
+                .sharpeRatio(sharpeRatio)
+                .positionMetrics(positionMetrics)
+                .build();
+    }
 
     private void validateWeights(List<PortfolioPosition> positions) {
         BigDecimal totalWeight = positions.stream()

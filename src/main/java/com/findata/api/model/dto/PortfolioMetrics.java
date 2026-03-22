@@ -22,7 +22,7 @@ public class PortfolioMetrics {
     private BigDecimal portfolioReturn;
     private BigDecimal portfolioReturnPercent;
     private BigDecimal portfolioVolatility;
-    private BigDecimal portfolioSharpeRatio;
+    private BigDecimal sharpeRatio;
 
     private List<PositionMetrics> positionMetrics;
 
