@@ -63,6 +63,16 @@ A backend system for market data aggregation, storage, and analysis. Provides RE
 - `GET /api/stocks/{ticker}/analytics/cached` - Retrieve pre-computed analytics (faster)
 - `GET /api/stocks/{ticker}/predict` - Get trend estimation via linear regression (requires 60+ days of data)
 
+### Portfolio Analytics
+
+- `POST /api/portfolio/metrics` - Calculate portfolio-level metrics for user-defined allocations
+
+### Monitoring
+
+- `GET /api/ingestion/status/latest` - Get most recent ingestion job status
+- `GET /api/ingestion/status/history` - Get last 10 ingestion job runs
+- `GET /api/ingestion/status/failed` - Get all failed ingestion jobs
+
 ## Example Usage
 
 ### Create a Stock
@@ -163,6 +173,63 @@ curl http://54.196.255.33:8080/api/stocks/AAPL/analytics/cached
 
 Returns pre-computed analytics from daily job. Much faster than real-time calculation, but may be up to 24 hours old.
 
+### Calculate Portfolio Metrics
+
+```bash
+curl -X POST http://54.196.255.33:8080/api/portfolio/metrics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "positions": [
+      {"ticker": "AAPL", "weight": 0.40},
+      {"ticker": "GOOGL", "weight": 0.35},
+      {"ticker": "MSFT", "weight": 0.25}
+    ],
+    "startDate": "2024-01-01",
+    "endDate": "2024-12-31"
+  }'
+```
+
+**Response:**
+```json
+{
+  "positions": [
+    {"ticker": "AAPL", "weight": 0.40},
+    {"ticker": "GOOGL", "weight": 0.35},
+    {"ticker": "MSFT", "weight": 0.25}
+  ],
+  "startDate": "2024-01-01",
+  "endDate": "2024-12-31",
+  "returnPercent": 16.39,
+  "volatility": 14.2,
+  "sharpeRatio": 1.15,
+  "positionMetrics": [
+    {
+      "ticker": "AAPL",
+      "weight": 0.40,
+      "returnPercent": 18.5,
+      "volatility": 14.2,
+      "contribution": 7.4
+    },
+    {
+      "ticker": "GOOGL",
+      "weight": 0.35,
+      "returnPercent": 15.0,
+      "volatility": 15.1,
+      "contribution": 5.25
+    },
+    {
+      "ticker": "MSFT",
+      "weight": 0.25,
+      "returnPercent": 15.0,
+      "volatility": 13.5,
+      "contribution": 3.75
+    }
+  ]
+}
+```
+
+**Note:** This is what-if analysis for a given allocation, not portfolio optimization or recommendation.
+
 ### Get Price Predictions
 
 ```bash
@@ -200,6 +267,33 @@ curl http://54.196.255.33:8080/api/stocks/AAPL/predict
 ```
 
 **Note:** Predictions are simple linear regression baselines for exploratory analysis, not production-grade forecasts.
+
+### Monitor Ingestion Job Status
+
+```bash
+# Get latest job run status
+curl http://54.196.255.33:8080/api/ingestion/status/latest
+
+# Get job history (last 10 runs)
+curl http://54.196.255.33:8080/api/ingestion/status/history
+
+# Get all failed jobs
+curl http://54.196.255.33:8080/api/ingestion/status/failed
+```
+
+**Response (latest):**
+```json
+{
+  "id": 42,
+  "jobStartedAt": "2025-02-10T18:00:00",
+  "jobCompletedAt": "2025-02-10T18:05:30",
+  "status": "COMPLETED",
+  "totalStocks": 5,
+  "stocksSucceeded": 5,
+  "stocksFailed": 0,
+  "errorMessage": null
+}
+```
 
 ## Error Handling
 
@@ -314,6 +408,21 @@ UNIQUE (ticker, as_of_date)
 
 **Purpose:** Stores pre-computed analytics to improve query performance. Separates raw price data from derived metrics.
 
+### Ingestion Status Table
+```sql
+id BIGSERIAL PRIMARY KEY
+job_started_at TIMESTAMP NOT NULL
+job_completed_at TIMESTAMP
+status VARCHAR(20) NOT NULL  -- RUNNING, COMPLETED, FAILED
+total_stocks INTEGER
+stocks_succeeded INTEGER
+stocks_failed INTEGER
+error_message TEXT
+created_at TIMESTAMP NOT NULL
+```
+
+**Purpose:** Tracks scheduled data ingestion job runs for monitoring and debugging.
+
 ## Project Structure
 
 ```
@@ -336,10 +445,13 @@ src/main/java/com/findata/api/
 - Computes and caches analytics metrics
 - Rate-limited to 5 calls per minute (13-second delays)
 - Idempotent upsert logic prevents duplicate entries
+- Job execution tracking with status monitoring
 
 ### Performance Optimizations
 - **Table Partitioning**: RANGE partitioning by date delivers 10-50x faster queries
 - **Derived Analytics Caching**: Pre-computed metrics eliminate expensive real-time calculations
+- **Composite Indexes**: Optimized for common query patterns (ticker + date)
+- **Query Performance Logging**: Automatic logging of slow queries (>100ms)
 - **Pagination**: Prevents memory issues when querying large datasets
 - **HashSet Filtering**: O(1) duplicate detection vs O(n) with List
 - **Bulk Operations**: Batch inserts for 100+ records at once
@@ -352,6 +464,14 @@ src/main/java/com/findata/api/
 - **Sharpe Ratio**: Risk-adjusted return metric
 - **Range Metrics**: 52-week high/low prices
 - **Volume Analysis**: 30-day average trading volume
+
+### Portfolio Analytics
+- **What-If Analysis**: Calculate metrics for user-defined portfolio allocations
+- **Portfolio Return**: Weighted sum of individual stock returns
+- **Portfolio Volatility**: Risk measurement for the entire portfolio
+- **Portfolio Sharpe Ratio**: Risk-adjusted return for the portfolio
+- **Position Metrics**: Individual stock contributions to portfolio performance
+- **Flexible Time Periods**: Analyze any date range with historical data
 
 ### Machine Learning Price Prediction
 - **Algorithm**: Linear regression with regularization (OLS)
@@ -366,6 +486,12 @@ src/main/java/com/findata/api/
 - **Filtering & Sorting**: Flexible query parameters for data exploration
 - **Consistent Error Format**: Standardized JSON error responses with field-level details
 - **Input Validation**: Request validation with detailed error messages
+
+### Monitoring & Observability
+- **Job Status Tracking**: Monitor scheduled ingestion job execution
+- **Query Performance Logging**: Automatic detection of slow queries
+- **Health Checks**: Spring Boot Actuator endpoints
+- **Error Tracking**: Detailed error messages and stack traces for failures
 
 ### Data Integrity
 - Input validation with custom error messages
