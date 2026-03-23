@@ -136,7 +136,7 @@ public class PortfolioAnalyticsService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .divide(new BigDecimal(dailyReturns.size()), 6, RoundingMode.HALF_UP);
 
-        double volatility = Math.sqrt(variance.doubleValue()) * Math.sqrt(252) * 100;
+        double volatility = Math.sqrt(variance.doubleValue()) * 100;
 
         return BigDecimal.valueOf(volatility).setScale(2, RoundingMode.HALF_UP);
     }
