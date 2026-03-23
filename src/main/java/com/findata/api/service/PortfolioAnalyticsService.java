@@ -66,7 +66,6 @@ public class PortfolioAnalyticsService {
                 .positions(request.getPositions())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
-                .portfolioReturn(portfolioReturn)
                 .portfolioReturnPercent(portfolioReturn)
                 .portfolioVolatility(portfolioVolatility)
                 .sharpeRatio(sharpeRatio)
