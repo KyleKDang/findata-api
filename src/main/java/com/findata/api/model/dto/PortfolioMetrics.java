@@ -19,8 +19,8 @@ public class PortfolioMetrics {
     private LocalDate startDate;
     private LocalDate endDate;
 
-    private BigDecimal portfolioReturnPercent;
-    private BigDecimal portfolioVolatility;
+    private BigDecimal returnPercent;
+    private BigDecimal volatility;
     private BigDecimal sharpeRatio;
 
     private List<PositionMetrics> positionMetrics;
