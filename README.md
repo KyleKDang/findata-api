@@ -184,9 +184,10 @@ curl -X POST http://54.196.255.33:8080/api/portfolio/metrics \
       {"ticker": "GOOGL", "weight": 0.35},
       {"ticker": "MSFT", "weight": 0.25}
     ],
-    "startDate": "2024-01-01",
-    "endDate": "2024-12-31"
+    "startDate": "2025-01-01",
+    "endDate": "2025-12-31"
   }'
+
 ```
 
 **Response:**
@@ -197,32 +198,32 @@ curl -X POST http://54.196.255.33:8080/api/portfolio/metrics \
     {"ticker": "GOOGL", "weight": 0.35},
     {"ticker": "MSFT", "weight": 0.25}
   ],
-  "startDate": "2024-01-01",
-  "endDate": "2024-12-31",
-  "returnPercent": 16.39,
-  "volatility": 14.2,
-  "sharpeRatio": 1.15,
+  "startDate": "2025-01-01",
+  "endDate": "2025-12-31",
+  "returnPercent": -3.95,
+  "volatility": 2.07,
+  "sharpeRatio": -1.91,
   "positionMetrics": [
     {
       "ticker": "AAPL",
       "weight": 0.40,
-      "returnPercent": 18.5,
-      "volatility": 14.2,
-      "contribution": 7.4
+      "returnPercent": -4.50,
+      "volatility": 0.94,
+      "contribution": -1.80
     },
     {
       "ticker": "GOOGL",
       "weight": 0.35,
-      "returnPercent": 15.0,
-      "volatility": 15.1,
-      "contribution": 5.25
+      "returnPercent": -10.70,
+      "volatility": 3.24,
+      "contribution": -3.75
     },
     {
       "ticker": "MSFT",
       "weight": 0.25,
-      "returnPercent": 15.0,
-      "volatility": 13.5,
-      "contribution": 3.75
+      "returnPercent": 6.38,
+      "volatility": 2.23,
+      "contribution": 1.60
     }
   ]
 }
