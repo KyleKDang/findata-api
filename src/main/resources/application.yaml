@@ -1,15 +1,11 @@
 spring:
-  config:
-    import: optional:file:./src/main/resources/application-secrets.yaml
-
-  devtools:
-    restart:
-      enabled: false
-
   application:
     name: findata-api
 
   datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/financial_data}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
     hikari:
@@ -57,3 +53,4 @@ logging:
 
 alphavantage:
   base-url: https://www.alphavantage.co/query
+  api-key: ${ALPHAVANTAGE_API_KEY:demo}
