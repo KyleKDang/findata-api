@@ -1,3 +1,15 @@
+"""
+add_stocks.py
+
+Adds the top 25 most important S&P 500 stocks to the FinData API.
+
+Usage:
+    python3 scripts/add_stocks.py              # Runs against localhost
+    python3 scripts/add_stocks.py <API_URL>    # Runs against a specific API endpoint
+
+After adding stocks, the script can optionally trigger the price data ingestion process.
+"""
+
 import sys
 import requests
 
