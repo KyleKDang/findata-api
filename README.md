@@ -45,14 +45,11 @@ A backend system for market data aggregation, storage, and analysis. Provides RE
 
 ### Stocks
 
-- `POST /api/stocks` - Create stock
 - `GET /api/stocks/{ticker}` - Get stock by ticker
 - `GET /api/stocks` - List all stocks
-- `DELETE /api/stocks/{ticker}` - Delete stock
 
 ### Price History
 
-- `POST /api/prices` - Add price entry
 - `GET /api/prices/{ticker}?page=0&size=50` - Get prices with pagination
 - `GET /api/prices/{ticker}/latest` - Get latest price
 - `GET /api/prices/{ticker}/range?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&page=0&size=50&sortBy=date&sortDirection=desc` - Get price range with pagination and sorting
@@ -74,19 +71,6 @@ A backend system for market data aggregation, storage, and analysis. Provides RE
 - `GET /api/ingestion/status/failed` - Get all failed ingestion jobs
 
 ## Example Usage
-
-### Create a Stock
-
-```bash
-curl -X POST http://54.196.255.33:8080/api/stocks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "ticker": "AAPL",
-    "companyName": "Apple Inc.",
-    "sector": "Technology",
-    "marketCap": 3000000000000
-  }'
-```
 
 ### Get Paginated Price History
 
