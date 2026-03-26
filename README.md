@@ -58,6 +58,9 @@ A backend system for market data aggregation, storage, and analysis. Provides RE
 
 - `GET /api/stocks/{ticker}/analytics` - Calculate real-time analytics
 - `GET /api/stocks/{ticker}/analytics/cached` - Retrieve pre-computed analytics (faster)
+
+### Trend Prediction
+
 - `GET /api/stocks/{ticker}/predict` - Get trend estimation via linear regression (requires 60+ days of data)
 
 ### Portfolio Analytics
@@ -157,6 +160,44 @@ curl http://54.196.255.33:8080/api/stocks/AAPL/analytics/cached
 
 Returns pre-computed analytics from daily job. Much faster than real-time calculation, but may be up to 24 hours old.
 
+### Get Price Predictions
+
+```bash
+curl http://54.196.255.33:8080/api/stocks/AAPL/predict
+```
+
+**Response:**
+```json
+{
+  "ticker": "AAPL",
+  "modelType": "ridge_regression",
+  "predictionDate": "2025-01-22",
+  "predictions": [
+    {
+      "date": "2025-01-23",
+      "predictedPrice": 185.50,
+      "confidenceLower": 181.30,
+      "confidenceUpper": 189.70
+    },
+    {
+      "date": "2025-01-24",
+      "predictedPrice": 186.20,
+      "confidenceLower": 182.00,
+      "confidenceUpper": 190.40
+    }
+  ],
+  "metrics": {
+    "rmse": 2.10,
+    "mae": 1.65,
+    "rSquared": 0.78,
+    "trainSize": 48,
+    "testSize": 12
+  }
+}
+```
+
+**Note:** Predictions are simple linear regression baselines for exploratory analysis, not production-grade forecasts.
+
 ### Calculate Portfolio Metrics
 
 ```bash
@@ -214,44 +255,6 @@ curl -X POST http://54.196.255.33:8080/api/portfolio/metrics \
 ```
 
 **Note:** This is what-if analysis for a given allocation, not portfolio optimization or recommendation.
-
-### Get Price Predictions
-
-```bash
-curl http://54.196.255.33:8080/api/stocks/AAPL/predict
-```
-
-**Response:**
-```json
-{
-  "ticker": "AAPL",
-  "modelType": "ridge_regression",
-  "predictionDate": "2025-01-22",
-  "predictions": [
-    {
-      "date": "2025-01-23",
-      "predictedPrice": 185.50,
-      "confidenceLower": 181.30,
-      "confidenceUpper": 189.70
-    },
-    {
-      "date": "2025-01-24",
-      "predictedPrice": 186.20,
-      "confidenceLower": 182.00,
-      "confidenceUpper": 190.40
-    }
-  ],
-  "metrics": {
-    "rmse": 2.10,
-    "mae": 1.65,
-    "rSquared": 0.78,
-    "trainSize": 48,
-    "testSize": 12
-  }
-}
-```
-
-**Note:** Predictions are simple linear regression baselines for exploratory analysis, not production-grade forecasts.
 
 ### Monitor Ingestion Job Status
 
@@ -450,14 +453,6 @@ src/main/java/com/findata/api/
 - **Range Metrics**: 52-week high/low prices
 - **Volume Analysis**: 30-day average trading volume
 
-### Portfolio Analytics
-- **What-If Analysis**: Calculate metrics for user-defined portfolio allocations
-- **Portfolio Return**: Weighted sum of individual stock returns
-- **Portfolio Volatility**: Risk measurement for the entire portfolio
-- **Portfolio Sharpe Ratio**: Risk-adjusted return for the portfolio
-- **Position Metrics**: Individual stock contributions to portfolio performance
-- **Flexible Time Periods**: Analyze any date range with historical data
-
 ### Machine Learning Price Prediction
 - **Algorithm**: Linear regression with regularization (OLS)
 - **Features**: 8 engineered features (lag prices, moving averages, volatility)
@@ -465,6 +460,14 @@ src/main/java/com/findata/api/
 - **Output**: 5-day trend estimates with confidence intervals
 - **Requirements**: Minimum 60 days of historical data
 - **Note**: Simple baseline for exploratory analysis, not production forecasts
+
+### Portfolio Analytics
+- **What-If Analysis**: Calculate metrics for user-defined portfolio allocations
+- **Portfolio Return**: Weighted sum of individual stock returns
+- **Portfolio Volatility**: Risk measurement for the entire portfolio
+- **Portfolio Sharpe Ratio**: Risk-adjusted return for the portfolio
+- **Position Metrics**: Individual stock contributions to portfolio performance
+- **Flexible Time Periods**: Analyze any date range with historical data
 
 ### API Design
 - **Pagination**: All list endpoints support page and size parameters
