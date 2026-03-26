@@ -48,7 +48,6 @@ def add_stocks(api_url: str) -> None:
     print(f"{'='*70}")
 
     success = 0
-    already_exists = 0
     failed = 0
 
     for ticker, company, sector, mcap_billions in STOCKS:
@@ -72,9 +71,6 @@ def add_stocks(api_url: str) -> None:
             if response.status_code in [200, 201]:
                 print(f"✓ {ticker:6s} {company:50s}")
                 success += 1
-            elif response.status_code == 409:
-                print(f"⊗ {ticker:6s} {company:50s} (already exists)")
-                already_exists += 1
             else:
                 print(f"✗ {ticker:6s} {company:50s} (HTTP {response.status_code})")
                 failed += 1
@@ -85,13 +81,12 @@ def add_stocks(api_url: str) -> None:
 
     print(f"{'='*70}")
     print(f"\nSummary:")
-    print(f"  ✓ Added: {success}")
-    print(f"  ⊗ Already existed: {already_exists}")
+    print(f"  ✓ Added/Updated: {success}")
     print(f"  ✗ Failed: {failed}")
     print(f"  Total: {len(STOCKS)}")
 
     # Ask about triggering ingestion
-    if success > 0 or already_exists > 0:
+    if success > 0:
         print(f"\n{'='*70}")
         trigger = input("Trigger price data ingestion now? (y/n): ").strip().lower()
         if trigger == 'y':
