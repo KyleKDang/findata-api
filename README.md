@@ -22,7 +22,7 @@ curl http://54.237.200.251:8080/api/stocks/AAPL/analytics
 
 A backend system for market data aggregation, storage, and analysis. Provides REST endpoints for querying historical prices, calculating financial metrics, and performing portfolio-level analytics.
 
-**Purpose:** This is a decision support tool that enables data-driven analysis, not a recommendation system or trading bot.
+**Purpose:** A decision support tool for data-driven stock analysis.
 
 ## Tech Stack
 
