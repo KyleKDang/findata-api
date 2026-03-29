@@ -38,7 +38,6 @@ A backend system for market data aggregation, storage, and analysis. Provides RE
 
 - **Compute:** AWS EC2 (t2.micro)
 - **Database:** AWS RDS PostgreSQL 15
-- **Container Registry:** AWS ECR
 - **Containerization:** Docker
 
 ## API Endpoints
