@@ -1,21 +1,21 @@
 # FinData Analytics API
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Available-success)](http://54.196.255.33:8080/actuator/health)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Available-success)](http://54.237.200.251:8080/actuator/health)
 [![Deployment](https://img.shields.io/badge/AWS-EC2-orange)]()
 [![Database](https://img.shields.io/badge/AWS-RDS%20PostgreSQL-blue)]()
 
-**Live API:** `http://54.196.255.33:8080`
+**Live API:** `http://54.237.200.251:8080`
 
 **Quick Test:**
 ```bash
 # Health check
-curl http://54.196.255.33:8080/actuator/health
+curl http://54.237.200.251:8080/actuator/health
 
 # Get all stocks
-curl http://54.196.255.33:8080/api/stocks
+curl http://54.237.200.251:8080/api/stocks
 
 # Get analytics for AAPL
-curl http://54.196.255.33:8080/api/stocks/AAPL/analytics
+curl http://54.237.200.251:8080/api/stocks/AAPL/analytics
 ```
 
 ---
@@ -79,10 +79,10 @@ A backend system for market data aggregation, storage, and analysis. Provides RE
 
 ```bash
 # First page (50 results)
-curl "http://54.196.255.33:8080/api/prices/AAPL?page=0&size=50"
+curl "http://54.237.200.251:8080/api/prices/AAPL?page=0&size=50"
 
 # Second page
-curl "http://54.196.255.33:8080/api/prices/AAPL?page=1&size=50"
+curl "http://54.237.200.251:8080/api/prices/AAPL?page=1&size=50"
 ```
 
 **Response:**
@@ -115,10 +115,10 @@ curl "http://54.196.255.33:8080/api/prices/AAPL?page=1&size=50"
 
 ```bash
 # Sort by closing price, ascending
-curl "http://54.196.255.33:8080/api/prices/AAPL/range?startDate=2024-01-01&endDate=2024-12-31&sortBy=close&sortDirection=asc&page=0&size=100"
+curl "http://54.237.200.251:8080/api/prices/AAPL/range?startDate=2024-01-01&endDate=2024-12-31&sortBy=close&sortDirection=asc&page=0&size=100"
 
 # Sort by date, descending (default)
-curl "http://54.196.255.33:8080/api/prices/AAPL/range?startDate=2024-01-01&endDate=2024-12-31"
+curl "http://54.237.200.251:8080/api/prices/AAPL/range?startDate=2024-01-01&endDate=2024-12-31"
 ```
 
 **Sortable fields:** date, open, high, low, close, volume
@@ -126,7 +126,7 @@ curl "http://54.196.255.33:8080/api/prices/AAPL/range?startDate=2024-01-01&endDa
 ### Get Stock Analytics (Real-time)
 
 ```bash
-curl http://54.196.255.33:8080/api/stocks/AAPL/analytics
+curl http://54.237.200.251:8080/api/stocks/AAPL/analytics
 ```
 
 **Response:**
@@ -155,7 +155,7 @@ curl http://54.196.255.33:8080/api/stocks/AAPL/analytics
 ### Get Cached Analytics (Faster)
 
 ```bash
-curl http://54.196.255.33:8080/api/stocks/AAPL/analytics/cached
+curl http://54.237.200.251:8080/api/stocks/AAPL/analytics/cached
 ```
 
 Returns pre-computed analytics from daily job. Much faster than real-time calculation, but may be up to 24 hours old.
@@ -163,7 +163,7 @@ Returns pre-computed analytics from daily job. Much faster than real-time calcul
 ### Get Price Predictions
 
 ```bash
-curl http://54.196.255.33:8080/api/stocks/AAPL/predict
+curl http://54.237.200.251:8080/api/stocks/AAPL/predict
 ```
 
 **Response:**
@@ -201,7 +201,7 @@ curl http://54.196.255.33:8080/api/stocks/AAPL/predict
 ### Calculate Portfolio Metrics
 
 ```bash
-curl -X POST http://54.196.255.33:8080/api/portfolio/metrics \
+curl -X POST http://54.237.200.251:8080/api/portfolio/metrics \
   -H "Content-Type: application/json" \
   -d '{
     "positions": [
@@ -260,13 +260,13 @@ curl -X POST http://54.196.255.33:8080/api/portfolio/metrics \
 
 ```bash
 # Get latest job run status
-curl http://54.196.255.33:8080/api/ingestion/status/latest
+curl http://54.237.200.251:8080/api/ingestion/status/latest
 
 # Get job history (last 10 runs)
-curl http://54.196.255.33:8080/api/ingestion/status/history
+curl http://54.237.200.251:8080/api/ingestion/status/history
 
 # Get all failed jobs
-curl http://54.196.255.33:8080/api/ingestion/status/failed
+curl http://54.237.200.251:8080/api/ingestion/status/failed
 ```
 
 **Response (latest):**
@@ -291,7 +291,7 @@ All errors follow a consistent JSON structure:
 
 **Request:**
 ```bash
-curl -X POST http://54.196.255.33:8080/api/stocks \
+curl -X POST http://54.237.200.251:8080/api/stocks \
   -H "Content-Type: application/json" \
   -d '{
     "ticker": "",
@@ -321,7 +321,7 @@ curl -X POST http://54.196.255.33:8080/api/stocks \
 
 **Request:**
 ```bash
-curl http://54.196.255.33:8080/api/stocks/AAPL/predict
+curl http://54.237.200.251:8080/api/stocks/AAPL/predict
 ```
 
 **Response (if insufficient data):**
@@ -339,7 +339,7 @@ curl http://54.196.255.33:8080/api/stocks/AAPL/predict
 
 **Request:**
 ```bash
-curl http://54.196.255.33:8080/api/stocks/INVALID
+curl http://54.237.200.251:8080/api/stocks/INVALID
 ```
 
 **Response:**
