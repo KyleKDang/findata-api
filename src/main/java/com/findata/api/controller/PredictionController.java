@@ -19,17 +19,7 @@ public class PredictionController {
     public ResponseEntity<StockPrediction> predictPrices(@PathVariable String ticker) {
         log.info("Received prediction request for ticker: {}", ticker);
 
-        try {
-            StockPrediction prediction = predictionService.predictPrices(ticker);
-            return ResponseEntity.ok(prediction);
-
-        } catch (IllegalArgumentException e) {
-            log.warn("Prediction failed for {}: {}", ticker, e.getMessage());
-            return ResponseEntity.badRequest().build();
-
-        } catch (Exception e) {
-            log.warn("Error generating predictions for {}", ticker, e);
-            return ResponseEntity.internalServerError().build();
-        }
+        StockPrediction prediction = predictionService.predictPrices(ticker);
+        return ResponseEntity.ok(prediction);
     }
 }
