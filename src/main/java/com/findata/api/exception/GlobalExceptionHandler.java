@@ -69,7 +69,7 @@ public class GlobalExceptionHandler {
 
         ApiError apiError = ApiError.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.NOT_EXTENDED.value())
+                .status(HttpStatus.NOT_FOUND.value())
                 .error(HttpStatus.NOT_FOUND.getReasonPhrase())
                 .message(ex.getMessage())
                 .path(request.getRequestURI())

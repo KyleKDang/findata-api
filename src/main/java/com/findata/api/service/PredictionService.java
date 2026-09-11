@@ -53,7 +53,7 @@ public class PredictionService {
 
         return StockPrediction.builder()
                 .ticker(ticker)
-                .modelType("ridge_regression")
+                .modelType("ols_linear_regression")
                 .predictionDate(LocalDate.now())
                 .predictions(predictions)
                 .metrics(metrics)
