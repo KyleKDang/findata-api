@@ -1,134 +1,272 @@
 # FinData Analytics API
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Available-success)](http://54.237.200.251:8080/actuator/health)
-[![Deployment](https://img.shields.io/badge/AWS-EC2-orange)]()
-[![Database](https://img.shields.io/badge/AWS-RDS%20PostgreSQL-blue)]()
+A Spring Boot REST API that ingests daily market data, stores it in a date-partitioned PostgreSQL schema, and serves computed financial analytics over HTTP.
 
-**Live API:** `http://54.237.200.251:8080`
+![Java](https://img.shields.io/badge/Java-17-007396)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.9-6DB33F)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
-**Quick Test:**
-```bash
-# Health check
-curl http://54.237.200.251:8080/actuator/health
+> **Project status:** archived.
+> The AWS deployment described under [Deployment](#deployment) has been decommissioned, so there is no public endpoint.
+> [Getting Started](#getting-started) runs the full stack locally.
 
-# Get all stocks
-curl http://54.237.200.251:8080/api/stocks
+## Contents
 
-# Get analytics for AAPL
-curl http://54.237.200.251:8080/api/stocks/AAPL/analytics
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [API Reference](#api-reference)
+- [Analytics Methodology](#analytics-methodology)
+- [Data Ingestion](#data-ingestion)
+- [Database Schema](#database-schema)
+- [Error Handling](#error-handling)
+- [Project Structure](#project-structure)
+- [Deployment](#deployment)
+- [License](#license)
+
+## Overview
+
+FinData aggregates daily OHLCV (open, high, low, close, volume) price data for a set of tracked tickers and exposes it through a REST API alongside derived metrics.
+
+It does three things:
+
+1. **Ingests** daily prices from the Alpha Vantage API on a nightly schedule, pacing requests to stay inside the provider's rate limit and recording the outcome of every run.
+2. **Stores** prices in a PostgreSQL table partitioned by date, with pre-computed analytics kept in a separate table so that read traffic does not pay the cost of recalculation.
+3. **Serves** per-stock analytics, a regression-based trend estimate, and portfolio-level what-if metrics over a paginated, validated REST interface.
+
+The API is read-oriented: most endpoints are `GET`, and the write endpoints exist to seed and operate the dataset rather than to serve end users.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    AV[Alpha Vantage API]
+    subgraph APP [Spring Boot application]
+        SCHED[ScheduledJobs<br/>nightly cron]
+        SVC[Analytics / Prediction /<br/>Portfolio services]
+        WEB[REST controllers]
+    end
+    subgraph DB [PostgreSQL]
+        PH[(price_history<br/>partitioned by date)]
+        DA[(derived_analytics)]
+        ST[(stocks)]
+        IS[(ingestion_status)]
+    end
+    CLIENT[HTTP client]
+
+    AV -->|TIME_SERIES_DAILY| SCHED
+    SCHED -->|new rows only| PH
+    SCHED -->|nightly snapshot| DA
+    SCHED -->|run outcome| IS
+    ST --> SCHED
+    CLIENT --> WEB
+    WEB --> SVC
+    SVC --> PH
+    SVC --> DA
 ```
 
----
+The application is a single Spring Boot process; the scheduler runs in the same JVM as the web layer.
 
-A backend system for market data aggregation, storage, and analysis. Provides REST endpoints for querying historical prices, calculating financial metrics, and performing portfolio-level analytics.
+There are two paths through the system:
 
-**Purpose:** A decision support tool for data-driven stock analysis.
+- **Write path (scheduled).** A cron job reads the tracked tickers, fetches each one from Alpha Vantage, filters out dates already stored, persists the remainder, computes that ticker's analytics, and writes them to `derived_analytics`. Each run opens and closes a row in `ingestion_status`.
+- **Read path (per request).** Analytics, trend estimates, and portfolio metrics are computed from `price_history` at request time. The one exception is `/analytics/cached`, which reads the nightly snapshot from `derived_analytics`.
+
+Layering follows the conventional Spring structure: controllers depend on services, services depend on Spring Data repositories, and repositories map to JPA entities.
+Flyway owns the schema and Hibernate runs in `validate` mode, so the database is never mutated by the ORM.
 
 ## Tech Stack
 
+| Area | Choice | Notes |
+| --- | --- | --- |
+| Language | Java 17 | |
+| Framework | Spring Boot 3.5.9 | Web, Data JPA, Validation, Actuator, AOP |
+| Database | PostgreSQL 15 | Range partitioning on `price_history` |
+| Migrations | Flyway | 6 versioned migrations, `validate-on-migrate` enabled |
+| Persistence | Spring Data JPA / Hibernate | `ddl-auto: validate` |
+| Connection pool | HikariCP | Max pool 10, min idle 5 |
+| Math | Apache Commons Math 3.6.1 | `OLSMultipleLinearRegression` |
+| Data source | Alpha Vantage `TIME_SERIES_DAILY` | Free tier |
+| Build | Maven | |
+| Container | Docker | Multi-stage build |
+| Boilerplate | Lombok | |
+
+## Getting Started
+
+### Prerequisites
+
 - Java 17
-- Spring Boot 3.5.9
-- PostgreSQL 15
-- Maven
-- Docker
-- Alpha Vantage API
-- Apache Commons Math 3.6.1
+- Maven 3.9+
+- PostgreSQL 15, or Docker to run it
 
-## Deployment
+### 1. Start PostgreSQL
 
-- **Compute:** AWS EC2 (t2.micro)
-- **Database:** AWS RDS PostgreSQL 15
-- **Containerization:** Docker
+```bash
+docker run -d --name findata-db \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=financial_data \
+  -p 5432:5432 \
+  postgres:15
+```
 
-## API Endpoints
+### 2. Configure
+
+All settings read from environment variables with local defaults, so a default Postgres on `localhost:5432` needs no configuration at all.
+To point elsewhere, or to use a real Alpha Vantage key:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | `jdbc:postgresql://localhost:5432/financial_data` | JDBC connection string |
+| `DATABASE_USERNAME` | `postgres` | Database user |
+| `DATABASE_PASSWORD` | `postgres` | Database password |
+| `ALPHAVANTAGE_API_KEY` | `demo` | Alpha Vantage key; a [free key](https://www.alphavantage.co/support/#api-key) is required for real ingestion |
+
+### 3. Run
+
+```bash
+mvn spring-boot:run
+```
+
+Flyway applies all six migrations on first start.
+The API listens on `http://localhost:8080`.
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+### 4. Load data
+
+The repository includes a script that registers 25 large-cap tickers and optionally kicks off an ingestion run:
+
+```bash
+pip install requests
+python3 scripts/add_stocks.py http://localhost:8080
+```
+
+Ingestion is paced at one request every 13 seconds to respect the Alpha Vantage free tier, so a full run over 25 tickers takes roughly five minutes.
+
+### Running with Docker
+
+The included multi-stage `Dockerfile` builds the project with Maven and runs the resulting jar on a JRE base image:
+
+```bash
+docker build -t findata-api .
+docker run -p 8080:8080 \
+  -e DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/financial_data \
+  -e DATABASE_USERNAME=postgres \
+  -e DATABASE_PASSWORD=postgres \
+  -e ALPHAVANTAGE_API_KEY=your_key \
+  findata-api
+```
+
+### Tests
+
+```bash
+mvn test
+```
+
+## API Reference
+
+Base URL: `http://localhost:8080`
+
+No endpoint requires authentication.
+Endpoints marked **W** write to the database or call the upstream provider.
 
 ### Stocks
 
-- `GET /api/stocks/{ticker}` - Get stock by ticker
-- `GET /api/stocks` - List all stocks
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/stocks` | List all tracked stocks |
+| `GET` | `/api/stocks/{ticker}` | Get a single stock |
+| `POST` | `/api/stocks` | **W** Register a stock |
+| `DELETE` | `/api/stocks/{ticker}` | **W** Remove a stock and, by cascade, all of its price history |
 
 ### Price History
 
-- `GET /api/prices/{ticker}?page=0&size=50` - Get prices with pagination
-- `GET /api/prices/{ticker}/latest` - Get latest price
-- `GET /api/prices/{ticker}/range?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&page=0&size=50&sortBy=date&sortDirection=desc` - Get price range with pagination and sorting
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/prices/{ticker}` | Paginated price history, newest first |
+| `GET` | `/api/prices/{ticker}/latest` | Most recent stored price |
+| `GET` | `/api/prices/{ticker}/range` | Paginated, sortable price history over a date range |
+| `POST` | `/api/prices` | **W** Insert a single price record |
+| `POST` | `/api/prices/bulk` | **W** Insert a list of price records |
+
+Query parameters for `/range`: `startDate` and `endDate` (required, `YYYY-MM-DD`), `page` (default `0`), `size` (default `50`), `sortBy` (default `date`), `sortDirection` (`asc` or `desc`, default `desc`).
+`sortBy` maps directly onto entity fields: `date`, `open`, `high`, `low`, `close`, `volume`.
 
 ### Analytics
 
-- `GET /api/stocks/{ticker}/analytics` - Calculate real-time analytics
-- `GET /api/stocks/{ticker}/analytics/cached` - Retrieve pre-computed analytics (faster)
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/stocks/{ticker}/analytics` | Compute analytics from stored prices on request |
+| `GET` | `/api/stocks/{ticker}/analytics/cached` | Return the most recent nightly snapshot |
 
-### Trend Prediction
+The cached endpoint returns the latest row written by the scheduled job and does not fall back to live computation; it returns `404` if the job has not yet produced a row for that ticker.
 
-- `GET /api/stocks/{ticker}/predict` - Get trend estimation via linear regression (requires 60+ days of data)
+### Trend Estimation
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/stocks/{ticker}/predict` | Five-day trend estimate from a linear regression baseline |
+
+Requires at least 60 stored days for the ticker.
 
 ### Portfolio Analytics
 
-- `POST /api/portfolio/metrics` - Calculate portfolio-level metrics for user-defined allocations
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/portfolio/metrics` | What-if metrics for a user-supplied allocation |
 
-### Monitoring
+This endpoint uses `POST` to accept a request body; it is a read-only computation and persists nothing.
 
-- `GET /api/ingestion/status/latest` - Get most recent ingestion job status
-- `GET /api/ingestion/status/history` - Get last 10 ingestion job runs
-- `GET /api/ingestion/status/failed` - Get all failed ingestion jobs
+### Ingestion Monitoring
 
-## Example Usage
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/ingestion/status/latest` | Most recent job run |
+| `GET` | `/api/ingestion/status/history` | Last 10 job runs |
+| `GET` | `/api/ingestion/status/failed` | All runs that ended in `FAILED` |
+| `POST` | `/api/ingestion/trigger` | **W** Run the ingestion job immediately |
 
-### Get Paginated Price History
+`POST /api/ingestion/trigger` executes the job on the request thread and returns only when the run finishes, so the request takes roughly 13 seconds per tracked ticker.
 
-```bash
-# First page (50 results)
-curl "http://54.237.200.251:8080/api/prices/AAPL?page=0&size=50"
+### Operational
 
-# Second page
-curl "http://54.237.200.251:8080/api/prices/AAPL?page=1&size=50"
-```
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/test/fetch-and-save/{ticker}` | **W** Fetch and persist one ticker from Alpha Vantage |
+| `GET` | `/actuator/health` | Health check |
+| `GET` | `/actuator/info` | Build and application info |
+| `GET` | `/actuator/metrics` | Micrometer metrics |
 
-**Response:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "ticker": "AAPL",
-      "date": "2025-01-22",
-      "open": 183.50,
-      "high": 186.00,
-      "low": 182.80,
-      "close": 185.50,
-      "volume": 52000000
-    }
-  ],
-  "pageable": {
-    "pageNumber": 0,
-    "pageSize": 50
-  },
-  "totalPages": 5,
-  "totalElements": 250,
-  "last": false,
-  "first": true
-}
-```
+## Analytics Methodology
 
-### Get Price Range with Sorting
+Every monetary value is handled as `BigDecimal` against `NUMERIC(12,4)` columns, with explicit scale and `HALF_UP` rounding at each division.
+Windows are counted in **trading days** (stored rows), not calendar days.
+Any metric whose window exceeds the available history returns `0`.
 
-```bash
-# Sort by closing price, ascending
-curl "http://54.237.200.251:8080/api/prices/AAPL/range?startDate=2024-01-01&endDate=2024-12-31&sortBy=close&sortDirection=asc&page=0&size=100"
+### Per-stock analytics
 
-# Sort by date, descending (default)
-curl "http://54.237.200.251:8080/api/prices/AAPL/range?startDate=2024-01-01&endDate=2024-12-31"
-```
+`GET /api/stocks/{ticker}/analytics`
 
-**Sortable fields:** date, open, high, low, close, volume
-
-### Get Stock Analytics (Real-time)
+| Field | Definition |
+| --- | --- |
+| `dailyChange`, `dailyChangePercent` | Change against the previous stored close |
+| `weeklyChange`, `weeklyChangePercent` | Change against the close 7 trading days back |
+| `monthlyChange`, `monthlyChangePercent` | Change against the close 30 trading days back |
+| `movingAverage50Day`, `movingAverage200Day` | Arithmetic mean of the last 50 and 200 closes |
+| `volatility30Day` | Standard deviation of the last 30 daily returns, annualized by √252 and expressed as a percentage |
+| `sharpeRatio` | Annualized excess return over annualized volatility across 252 trading days, against a 2.5% annual risk-free rate |
+| `week52High`, `week52Low` | Highest high and lowest low over the last 252 rows |
+| `averageVolume30Day` | Mean volume over the last 30 rows |
 
 ```bash
-curl http://54.237.200.251:8080/api/stocks/AAPL/analytics
+curl http://localhost:8080/api/stocks/AAPL/analytics
 ```
 
-**Response:**
 ```json
 {
   "ticker": "AAPL",
@@ -151,25 +289,26 @@ curl http://54.237.200.251:8080/api/stocks/AAPL/analytics
 }
 ```
 
-### Get Cached Analytics (Faster)
+### Trend estimation
+
+`GET /api/stocks/{ticker}/predict`
+
+An ordinary least squares regression (`OLSMultipleLinearRegression`) over eight engineered features: the five most recent closes, a 10-day and a 20-day simple moving average, and the standard deviation of the last five daily returns.
+The sample is split 80/20 into fit and hold-out sets, and RMSE, MAE, and R² are reported against the hold-out set.
+The five-day horizon is generated recursively, each prediction feeding the feature window for the next.
+Horizon dates advance one calendar day at a time from the most recent stored date, so they may fall on weekends.
+Intervals are the point estimate ± 2 × RMSE.
+
+This is a baseline for exploratory analysis, not a production forecast.
 
 ```bash
-curl http://54.237.200.251:8080/api/stocks/AAPL/analytics/cached
+curl http://localhost:8080/api/stocks/AAPL/predict
 ```
 
-Returns pre-computed analytics from daily job. Much faster than real-time calculation, but may be up to 24 hours old.
-
-### Get Price Predictions
-
-```bash
-curl http://54.237.200.251:8080/api/stocks/AAPL/predict
-```
-
-**Response:**
 ```json
 {
   "ticker": "AAPL",
-  "modelType": "ridge_regression",
+  "modelType": "ols_linear_regression",
   "predictionDate": "2025-01-22",
   "predictions": [
     {
@@ -177,12 +316,6 @@ curl http://54.237.200.251:8080/api/stocks/AAPL/predict
       "predictedPrice": 185.50,
       "confidenceLower": 181.30,
       "confidenceUpper": 189.70
-    },
-    {
-      "date": "2025-01-24",
-      "predictedPrice": 186.20,
-      "confidenceLower": 182.00,
-      "confidenceUpper": 190.40
     }
   ],
   "metrics": {
@@ -195,12 +328,26 @@ curl http://54.237.200.251:8080/api/stocks/AAPL/predict
 }
 ```
 
-**Note:** Predictions are simple linear regression baselines for exploratory analysis, not production-grade forecasts.
+### Portfolio metrics
 
-### Calculate Portfolio Metrics
+`POST /api/portfolio/metrics`
+
+Weights must sum to 1.0 within a tolerance of ±0.01.
+All figures are stated over the requested period rather than annualized, so that return and volatility remain directly comparable.
+
+| Field | Definition |
+| --- | --- |
+| Position `returnPercent` | Percentage change between the first and last close in the range |
+| Position `volatility` | Standard deviation of daily returns over the range, as a percentage |
+| Position `contribution` | Position return × weight |
+| `returnPercent` | Sum of position contributions |
+| `volatility` | Weighted average of position volatilities |
+| `sharpeRatio` | Portfolio return ÷ portfolio volatility |
+
+This is what-if analysis for a given allocation, not portfolio optimization or a recommendation.
 
 ```bash
-curl -X POST http://54.237.200.251:8080/api/portfolio/metrics \
+curl -X POST http://localhost:8080/api/portfolio/metrics \
   -H "Content-Type: application/json" \
   -d '{
     "positions": [
@@ -211,94 +358,105 @@ curl -X POST http://54.237.200.251:8080/api/portfolio/metrics \
     "startDate": "2025-01-01",
     "endDate": "2025-12-31"
   }'
-
 ```
 
-**Response:**
 ```json
 {
-  "positions": [
-    {"ticker": "AAPL", "weight": 0.40},
-    {"ticker": "GOOGL", "weight": 0.35},
-    {"ticker": "MSFT", "weight": 0.25}
-  ],
   "startDate": "2025-01-01",
   "endDate": "2025-12-31",
   "returnPercent": -3.95,
   "volatility": 2.07,
   "sharpeRatio": -1.91,
   "positionMetrics": [
-    {
-      "ticker": "AAPL",
-      "weight": 0.40,
-      "returnPercent": -4.50,
-      "volatility": 0.94,
-      "contribution": -1.80
-    },
-    {
-      "ticker": "GOOGL",
-      "weight": 0.35,
-      "returnPercent": -10.70,
-      "volatility": 3.24,
-      "contribution": -3.75
-    },
-    {
-      "ticker": "MSFT",
-      "weight": 0.25,
-      "returnPercent": 6.38,
-      "volatility": 2.23,
-      "contribution": 1.60
-    }
+    {"ticker": "AAPL",  "weight": 0.40, "returnPercent": -4.50,  "volatility": 0.94, "contribution": -1.80},
+    {"ticker": "GOOGL", "weight": 0.35, "returnPercent": -10.70, "volatility": 3.24, "contribution": -3.75},
+    {"ticker": "MSFT",  "weight": 0.25, "returnPercent": 6.38,   "volatility": 2.23, "contribution": 1.60}
   ]
 }
 ```
 
-**Note:** This is what-if analysis for a given allocation, not portfolio optimization or recommendation.
+## Data Ingestion
 
-### Monitor Ingestion Job Status
+A cron job runs daily at 18:00 `America/New_York`:
 
-```bash
-# Get latest job run status
-curl http://54.237.200.251:8080/api/ingestion/status/latest
+1. Opens an `ingestion_status` row with status `RUNNING`.
+2. For each tracked ticker, fetches `TIME_SERIES_DAILY` from Alpha Vantage.
+3. Loads the dates already stored for that ticker into a set and inserts only the dates missing from it, which keeps the job idempotent across re-runs.
+4. Recomputes that ticker's analytics and writes a snapshot to `derived_analytics`.
+5. Sleeps 13 seconds before the next ticker, pacing the job at roughly 4.6 requests per minute against the provider's 5-per-minute free tier.
+6. Closes the `ingestion_status` row with per-ticker success and failure counts, or with an error message if the run aborts.
 
-# Get job history (last 10 runs)
-curl http://54.237.200.251:8080/api/ingestion/status/history
+A failure on one ticker is caught and counted without aborting the run.
+The same job is reachable on demand through `POST /api/ingestion/trigger`.
 
-# Get all failed jobs
-curl http://54.237.200.251:8080/api/ingestion/status/failed
+Query performance is observable through an AOP aspect that times every repository call and logs it at `WARN` above 100 ms, `INFO` above 50 ms, and `DEBUG` otherwise.
+
+## Database Schema
+
+Four tables, created and versioned by six Flyway migrations in `src/main/resources/db/migration`.
+
+### `stocks`
+
+```sql
+ticker        VARCHAR(10) PRIMARY KEY
+company_name  VARCHAR(255) NOT NULL
+sector        VARCHAR(100)
+market_cap    BIGINT
+created_at    TIMESTAMP NOT NULL
+updated_at    TIMESTAMP NOT NULL
 ```
 
-**Response (latest):**
-```json
-{
-  "id": 42,
-  "jobStartedAt": "2025-02-10T18:00:00",
-  "jobCompletedAt": "2025-02-10T18:05:30",
-  "status": "COMPLETED",
-  "totalStocks": 5,
-  "stocksSucceeded": 5,
-  "stocksFailed": 0,
-  "errorMessage": null
-}
+Indexed on `sector` and on `market_cap DESC`.
+
+### `price_history`
+
+```sql
+id          BIGSERIAL
+ticker      VARCHAR(10) NOT NULL REFERENCES stocks(ticker) ON DELETE CASCADE
+date        DATE NOT NULL
+open        NUMERIC(12,4) NOT NULL
+high        NUMERIC(12,4) NOT NULL
+low         NUMERIC(12,4) NOT NULL
+close       NUMERIC(12,4) NOT NULL
+volume      BIGINT NOT NULL
+created_at  TIMESTAMP NOT NULL
+PRIMARY KEY (id, date)
+UNIQUE (ticker, date)
+PARTITION BY RANGE (date)
+```
+
+Partitioned by `date` so that range-scoped queries touch only the relevant partitions.
+Partitions: one per month for calendar year 2025, plus a `DEFAULT` partition that receives every other date.
+
+PostgreSQL requires the partition key to participate in the primary key, so the key is the composite `(id, date)` rather than `id` alone.
+Migration `V3` performs the conversion in place: it renames the original table, creates the partitioned replacement, copies every row, advances the identity sequence with `setval`, and drops the original.
+
+### `derived_analytics`
+
+Stores one nightly analytics snapshot per ticker, keyed `UNIQUE (ticker, as_of_date)`, with a `calculated_at` timestamp.
+Separating derived metrics from raw prices costs storage and buys read latency: `/analytics/cached` serves a single indexed row instead of recomputing across a full price history.
+The trade-off is staleness, since a snapshot can be up to 24 hours old.
+
+### `ingestion_status`
+
+```sql
+id                BIGSERIAL PRIMARY KEY
+job_started_at    TIMESTAMP NOT NULL
+job_completed_at  TIMESTAMP
+status            VARCHAR(20) NOT NULL  -- RUNNING, COMPLETED, FAILED
+total_stocks      INTEGER
+stocks_succeeded  INTEGER
+stocks_failed     INTEGER
+error_message     TEXT
+created_at        TIMESTAMP NOT NULL
 ```
 
 ## Error Handling
 
-All errors follow a consistent JSON structure:
+A `@RestControllerAdvice` maps exceptions onto a single `ApiError` shape, so every failure returns the same envelope.
 
-### Validation Error (400)
+**Validation failure** — `400`, with per-field detail:
 
-**Request:**
-```bash
-curl -X POST http://54.237.200.251:8080/api/stocks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "ticker": "",
-    "companyName": "Apple Inc."
-  }'
-```
-
-**Response:**
 ```json
 {
   "timestamp": "2025-01-22T10:30:00",
@@ -316,14 +474,8 @@ curl -X POST http://54.237.200.251:8080/api/stocks \
 }
 ```
 
-### Business Logic Error (400)
+**Business rule violation** — `400`, for example requesting a trend estimate with fewer than 60 stored days:
 
-**Request:**
-```bash
-curl http://54.237.200.251:8080/api/stocks/AAPL/predict
-```
-
-**Response (if insufficient data):**
 ```json
 {
   "timestamp": "2025-01-22T10:30:00",
@@ -334,158 +486,50 @@ curl http://54.237.200.251:8080/api/stocks/AAPL/predict
 }
 ```
 
-### Not Found (404)
+**Not found** — `404`:
 
-**Request:**
-```bash
-curl http://54.237.200.251:8080/api/stocks/INVALID
-```
-
-**Response:**
 ```json
 {
   "timestamp": "2025-01-22T10:30:00",
   "status": 404,
   "error": "Not Found",
-  "message": "Stock not found",
-  "path": "/api/stocks/INVALID"
+  "message": "No cached analytics found for ticker: INVALID",
+  "path": "/api/stocks/INVALID/analytics/cached"
 }
 ```
 
-## Database Schema
-
-### Stocks Table
-```sql
-ticker VARCHAR(10) PRIMARY KEY
-company_name VARCHAR(255) NOT NULL
-sector VARCHAR(100)
-market_cap BIGINT
-created_at TIMESTAMP NOT NULL
-updated_at TIMESTAMP
-```
-
-### Price History Table (Partitioned)
-```sql
-id BIGSERIAL
-ticker VARCHAR(10) FOREIGN KEY REFERENCES stocks(ticker)
-date DATE NOT NULL
-open NUMERIC(12,4) NOT NULL
-high NUMERIC(12,4) NOT NULL
-low NUMERIC(12,4) NOT NULL
-close NUMERIC(12,4) NOT NULL
-volume BIGINT NOT NULL
-created_at TIMESTAMP NOT NULL
-PRIMARY KEY (id, date)
-UNIQUE (ticker, date)
-PARTITION BY RANGE (date)
-```
-
-**Partitions:** 12 monthly partitions for 2025 (Jan-Dec) plus default partition
-
-### Derived Analytics Table
-```sql
-id BIGSERIAL PRIMARY KEY
-ticker VARCHAR(10) FOREIGN KEY REFERENCES stocks(ticker)
-as_of_date DATE NOT NULL
-current_price NUMERIC(12,4) NOT NULL
--- ... all analytics metrics ...
-calculated_at TIMESTAMP NOT NULL
-UNIQUE (ticker, as_of_date)
-```
-
-**Purpose:** Stores pre-computed analytics to improve query performance. Separates raw price data from derived metrics.
-
-### Ingestion Status Table
-```sql
-id BIGSERIAL PRIMARY KEY
-job_started_at TIMESTAMP NOT NULL
-job_completed_at TIMESTAMP
-status VARCHAR(20) NOT NULL  -- RUNNING, COMPLETED, FAILED
-total_stocks INTEGER
-stocks_succeeded INTEGER
-stocks_failed INTEGER
-error_message TEXT
-created_at TIMESTAMP NOT NULL
-```
-
-**Purpose:** Tracks scheduled data ingestion job runs for monitoring and debugging.
+**Unhandled error** — `500`, with a generic message so that internal detail is not returned to the caller.
 
 ## Project Structure
 
 ```
 src/main/java/com/findata/api/
-├── config/          # Configuration classes
+├── config/          # Alpha Vantage properties, AOP query timing
 ├── controller/      # REST controllers
-├── exception/       # Global exception handlers
+├── exception/       # Global exception handler and custom exceptions
 ├── model/
-│   ├── dto/        # Data Transfer Objects
-│   └── entity/     # JPA entities
+│   ├── dto/         # Request and response payloads
+│   └── entity/      # JPA entities
 ├── repository/      # Spring Data repositories
-└── service/         # Business logic
+└── service/         # Ingestion, analytics, prediction, portfolio, scheduling
+
+src/main/resources/
+├── application.yaml # Configuration, all secrets read from the environment
+└── db/migration/    # Flyway migrations V1-V6
+
+scripts/
+└── add_stocks.py    # Registers 25 large-cap tickers against a running instance
 ```
 
-## Features
+## Deployment
 
-### Automated Data Pipeline
-- Scheduled cron job runs daily at 6 PM EST
-- Fetches latest stock prices from Alpha Vantage API
-- Computes and caches analytics metrics
-- Rate-limited to 5 calls per minute (13-second delays)
-- Idempotent upsert logic prevents duplicate entries
-- Job execution tracking with status monitoring
+The project was deployed on AWS and has since been decommissioned.
+The configuration remains in the repository and is reproducible:
 
-### Performance Optimizations
-- **Table Partitioning**: RANGE partitioning by date delivers 10-50x faster queries
-- **Derived Analytics Caching**: Pre-computed metrics eliminate expensive real-time calculations
-- **Composite Indexes**: Optimized for common query patterns (ticker + date)
-- **Query Performance Logging**: Automatic logging of slow queries (>100ms)
-- **Pagination**: Prevents memory issues when querying large datasets
-- **HashSet Filtering**: O(1) duplicate detection vs O(n) with List
-- **Bulk Operations**: Batch inserts for 100+ records at once
-- **Connection Pooling**: HikariCP with optimized pool settings
-
-### Financial Analytics
-- **Price Changes**: Daily, weekly, and monthly returns (absolute and percentage)
-- **Moving Averages**: 50-day and 200-day trend indicators
-- **Volatility**: 30-day standard deviation of returns
-- **Sharpe Ratio**: Risk-adjusted return metric
-- **Range Metrics**: 52-week high/low prices
-- **Volume Analysis**: 30-day average trading volume
-
-### Machine Learning Price Prediction
-- **Algorithm**: Linear regression with regularization (OLS)
-- **Features**: 8 engineered features (lag prices, moving averages, volatility)
-- **Validation**: 80/20 train/test split with RMSE, MAE, R² metrics
-- **Output**: 5-day trend estimates with confidence intervals
-- **Requirements**: Minimum 60 days of historical data
-- **Note**: Simple baseline for exploratory analysis, not production forecasts
-
-### Portfolio Analytics
-- **What-If Analysis**: Calculate metrics for user-defined portfolio allocations
-- **Portfolio Return**: Weighted sum of individual stock returns
-- **Portfolio Volatility**: Risk measurement for the entire portfolio
-- **Portfolio Sharpe Ratio**: Risk-adjusted return for the portfolio
-- **Position Metrics**: Individual stock contributions to portfolio performance
-- **Flexible Time Periods**: Analyze any date range with historical data
-
-### API Design
-- **Pagination**: All list endpoints support page and size parameters
-- **Filtering & Sorting**: Flexible query parameters for data exploration
-- **Consistent Error Format**: Standardized JSON error responses with field-level details
-- **Input Validation**: Request validation with detailed error messages
-
-### Monitoring & Observability
-- **Job Status Tracking**: Monitor scheduled ingestion job execution
-- **Query Performance Logging**: Automatic detection of slow queries
-- **Health Checks**: Spring Boot Actuator endpoints
-- **Error Tracking**: Detailed error messages and stack traces for failures
-
-### Data Integrity
-- Input validation with custom error messages
-- Foreign key constraints with cascade delete
-- Unique constraints on (ticker, date) pairs
-- BigDecimal precision for financial calculations
+- **Compute:** EC2 `t2.micro` running the container built from the included `Dockerfile`.
+- **Database:** RDS PostgreSQL 15 in `us-east-1`.
+- **Configuration:** supplied entirely through environment variables. No credential is committed; `application.yaml` reads `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, and `ALPHAVANTAGE_API_KEY`, with local development defaults, and the files holding real values are excluded by `.gitignore`.
 
 ## License
 
-MIT
+[MIT](LICENSE)
