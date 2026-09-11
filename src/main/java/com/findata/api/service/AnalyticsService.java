@@ -96,23 +96,23 @@ public class AnalyticsService {
     }
 
     private BigDecimal calculateVolatility(List<PriceHistory> prices, int days) {
-        if (prices.size() < days) return BigDecimal.ZERO;
+        if (prices.size() < days + 1) return BigDecimal.ZERO;
 
-        List<BigDecimal> returns = prices.stream()
-                .limit(days)
-                .map(PriceHistory::getClose)
-                .toList();
+        List<BigDecimal> dailyReturns = calculateDailyReturns(prices, days);
 
-        BigDecimal mean = returns.stream()
+        if (dailyReturns.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal averageDailyReturn = dailyReturns.stream()
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(returns.size()), 4, RoundingMode.HALF_UP);
+                .divide(BigDecimal.valueOf(dailyReturns.size()), 6, RoundingMode.HALF_UP);
 
-        BigDecimal variance = returns.stream()
-                .map(price -> price.subtract(mean).pow(2))
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(returns.size()), 4, RoundingMode.HALF_UP);
+        BigDecimal dailyVolatility = calculateDailyVolatility(dailyReturns, averageDailyReturn);
 
-        return BigDecimal.valueOf(Math.sqrt(variance.doubleValue()))
+        return dailyVolatility
+                .multiply(BigDecimal.valueOf(Math.sqrt(TRADING_DAYS_PER_YEAR)))
+                .multiply(BigDecimal.valueOf(100))
                 .setScale(4, RoundingMode.HALF_UP);
     }
 
